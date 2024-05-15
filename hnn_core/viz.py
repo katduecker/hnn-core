@@ -309,7 +309,7 @@ def plot_dipole(dpl, tmin=None, tmax=None, ax=None, layer='agg', decim=None,
                     alpha = 0.5 if average else 1.
                     ax.plot(times, data, color=_lighten_color(color, 0.5),
                             alpha=alpha, lw=1.)
-            
+
             # To be removed after deprecation cycle
             if tmin is not None or tmax is not None:
                 ax.set_xlim(left=tmin, right=tmax)
@@ -558,7 +558,7 @@ def plot_spikes_raster(cell_response, trial_idx=None, ax=None, show=True):
         cell_type_times, cell_type_ypos = [], []
         for gid in cell_type_gids:
             gid_time = spike_times[spike_gids == gid]
-            
+
             cell_type_times.append(gid_time)
             cell_type_ypos.append(ypos)
             ypos = ypos - 1
@@ -573,7 +573,11 @@ def plot_spikes_raster(cell_response, trial_idx=None, ax=None, show=True):
     ax.set_facecolor('k')
     ax.set_xlabel('Time (ms)')
     ax.get_yaxis().set_visible(False)
-    ax.set_xlim(left=0, right=cell_response.times[-1])
+
+    if len(cell_response.times) > 0:
+        ax.set_xlim(left=0, right=cell_response.times[-1])
+    else:
+        ax.set_xlim(left=0)
 
     plt_show(show)
     return ax.get_figure()

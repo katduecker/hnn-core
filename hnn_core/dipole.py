@@ -480,7 +480,6 @@ class Dipole(object):
         tmax : float | None [deprecated]
             End time of plot in milliseconds.
             If None, plot entire simulation.
-            
         layer : str
             The layer to plot. Can be one of 'agg', 'L2', and 'L5'
         decimate : int
