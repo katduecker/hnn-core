@@ -5,6 +5,7 @@
 
 import os
 import warnings
+
 from io import StringIO
 
 import numpy as np
@@ -474,12 +475,6 @@ class Dipole(object):
 
         Parameters
         ----------
-        tmin : float | None [deprecated]
-            Start time of plot in milliseconds.
-            If None, plot entire simulation.
-        tmax : float | None [deprecated]
-            End time of plot in milliseconds.
-            If None, plot entire simulation.
         layer : str
             The layer to plot. Can be one of 'agg', 'L2', and 'L5'
         decimate : int
@@ -496,6 +491,7 @@ class Dipole(object):
         fig : instance of plt.fig
             The matplotlib figure handle.
         """
+
         return plot_dipole(self, tmin=tmin, tmax=tmax, ax=ax, layer=layer,
                            decim=decim, color=color, show=show)
 
