@@ -185,12 +185,13 @@ def plot_laminar_lfp(times, data, contact_labels, tmin=None, tmax=None,
         # To be removed after deprecation cycle
         if tmin is not None or tmax is not None:
             ax.set_xlim(left=tmin, right=tmax)
-            warnings.warn('tmin and tmax are deprecated and will be removed'
-                              'in future releases of hnn-core.'
-                              'Please use matplotlib plt.xlim to set tmin and tmax.', DeprecationWarning)
+            warnings.warn('tmin and tmax are deprecated and will be '
+                          'removed in future releases of hnn-core. Please'
+                          'use matplotlib plt.xlim to set tmin and tmax.',
+                          DeprecationWarning)
 
         else:
-            ax.set_xlim(left=times[0],right=times[-1])
+            ax.set_xlim(left=times[0], right=times[-1])
     if voltage_offset is not None:
         ax.set_ylim(-voltage_offset, n_offsets * voltage_offset)
         ylabel = 'Individual contact traces'
@@ -308,9 +309,11 @@ def plot_dipole(dpl, tmin=None, tmax=None, ax=None, layer='agg', decim=None,
             # To be removed after deprecation cycle
             if tmin is not None or tmax is not None:
                 if tmin is not None or tmax is not None:
-                    warnings.warn('tmin and tmax are deprecated and will be removed'
-                                  'in future releases of hnn-core.'
-                                  'Please use matplotlib plt.xlim to set tmin and tmax.', DeprecationWarning)
+                    warnings.warn('tmin and tmax are deprecated and will be '
+                                  'removed in future releases of hnn-core. '
+                                  'Please use matplotlib plt.xlim to set tmin'
+                                  ' and tmax.',
+                                  DeprecationWarning)
                 ax.set_xlim(left=tmin, right=tmax)
 
             else:

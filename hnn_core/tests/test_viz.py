@@ -196,7 +196,7 @@ def test_dipole_visualization(setup_net):
 
     # pytest deprecation warning for tmin and tmax
     with pytest.deprecated_call():
-        plot_dipole(dpls[0], show=False, tmin=10,tmax=100)
+        plot_dipole(dpls[0], show=False, tmin=10, tmax=100)
 
     # test cell response plotting
     with pytest.raises(TypeError, match="trial_idx must be an instance of"):
