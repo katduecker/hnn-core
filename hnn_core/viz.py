@@ -182,7 +182,7 @@ def plot_laminar_lfp(times, data, contact_labels, tmin=None, tmax=None,
             col = color
         ax.plot(plot_times, plot_data + trace_offsets[contact_no],
                 label=f'C{contact_no}', color=col)
-                
+
         # To be removed after deprecation cycle
         if tmin is not None or tmax is not None:
             ax.set_xlim(left=tmin, right=tmax)
@@ -193,7 +193,7 @@ def plot_laminar_lfp(times, data, contact_labels, tmin=None, tmax=None,
 
         else:
             ax.set_xlim(left=times[0], right=times[-1])
-            
+
     if voltage_offset is not None:
         ax.set_ylim(-voltage_offset, n_offsets * voltage_offset)
         ylabel = 'Individual contact traces'
@@ -317,9 +317,8 @@ def plot_dipole(dpl, tmin=None, tmax=None, ax=None, layer='agg', decim=None,
                                   ' and tmax.',
                                   DeprecationWarning)
                 ax.set_xlim(left=tmin, right=tmax)
-
             else:
-                ax.set_xlim(left=0,right=times[-1])
+                ax.set_xlim(left=0, right=times[-1])
 
         if average:
             ax.legend()
@@ -472,7 +471,7 @@ def plot_spikes_hist(cell_response, trial_idx=None, ax=None, spike_types=None,
         color_cycle = cycle(color)
 
     bins = np.linspace(0, spike_times[-1], 50)
-    
+
     # Create dictionary to aggregate spike times that have the same spike_label
     spike_type_times = {spike_label: list() for
                         spike_label in np.unique(list(spike_labels.values()))}
@@ -498,12 +497,12 @@ def plot_spikes_hist(cell_response, trial_idx=None, ax=None, spike_types=None,
                 label=spike_label, color=hist_color, **kwargs_hist)
 
     if len(cell_response.times) > 0:
-        ax.set_xlim(left=0,right=cell_response.times[-1])
+        ax.set_xlim(left=0, right=cell_response.times[-1])
     else:
         ax.set_xlim(left=0)
-        
+
     ax.set_ylabel("Counts")
-   
+
     plt_show(show)
 
     return ax.get_figure()
