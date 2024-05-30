@@ -68,6 +68,16 @@ Changelog
 - Added feature to read/write :class:`~hnn_core.Network` configurations to
   json, by `George Dang`_ and `Rajat Partani`_ in :gh:`757`
 
+<<<<<<< HEAD
+=======
+- Added :class:`~hnn_core/viz/NetworkPlotter` to visualize and animate network simulations,
+  by `Nick Tolley`_ in :gh:`649`.
+
+- :func:`~plot_laminar_lfp`, :func:`~plot_dipole`, :func:`~plot_spikes_hist`, 
+  and :func:`~plot_spikes_raster` now plotted from 0 to tstop. Inputs tmin and tmax are deprecated,
+  by `Aritra Sinha`_, `Tianqi Cheng`_, and `Katharina Duecker`_ in :gh:`769`
+
+>>>>>>> 4f8bfb3b (tstop update added to whats_new, conflict resolved)
 Bug
 ~~~
 - Fix inconsistent connection mapping from drive gids to cell gids, by
