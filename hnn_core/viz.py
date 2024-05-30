@@ -1186,7 +1186,7 @@ def plot_cell_connectivity(net, conn_idx, src_gid=None, axes=None,
 
 
 def plot_laminar_csd(times, data, contact_labels, ax=None, colorbar=True,
-                     show=True):
+                     show=True, vmin=None, vmax=None):
     """Plot laminar current source density (CSD) estimation from LFP array.
 
     Parameters
@@ -1215,7 +1215,7 @@ def plot_laminar_csd(times, data, contact_labels, ax=None, colorbar=True,
         _, ax = plt.subplots(1, 1, constrained_layout=True)
 
     im = ax.pcolormesh(times, contact_labels, np.array(data),
-                       cmap="jet_r", shading='auto')
+                       cmap="jet_r", shading='auto', vmin=vmin, vmax=vmax)
     ax.set_title("CSD")
 
     if colorbar:
