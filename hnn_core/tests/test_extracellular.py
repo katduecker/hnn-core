@@ -258,7 +258,7 @@ def test_rec_array_calculation():
                         rtol=1e-3, atol=1e-3)
 
 
-def test_lfp_plot_deprecation_warn():
+def test_extracellular_viz():
     """Test if deprecation warning is raised in plot_laminar_lfp."""
     hnn_core_root = op.dirname(hnn_core.__file__)
     params_fname = op.join(hnn_core_root, 'param', 'default.json')
