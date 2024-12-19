@@ -290,12 +290,12 @@ def get_L5Pyr_params_default():
         # Soma
         'L5Pyr_soma_L': 39.,
         'L5Pyr_soma_diam': 28.9,
-        'L5Pyr_soma_cm': 0.85,
-        'L5Pyr_soma_Ra': 200.,
+        'L5Pyr_soma_cm': 1,
+        'L5Pyr_soma_Ra': 100.,
 
         # Dendrites
-        'L5Pyr_dend_cm': 0.85,
-        'L5Pyr_dend_Ra': 200.,
+        'L5Pyr_dend_cm': 1.,
+        'L5Pyr_dend_Ra': 100.,
 
         'L5Pyr_apicaltrunk_L': 102.,
         'L5Pyr_apicaltrunk_diam': 10.2,
@@ -361,4 +361,76 @@ def get_L5Pyr_params_default():
         'L5Pyr_dend_gbar_km': 200.,
         'L5Pyr_dend_gbar_cat': 2e-4,
         'L5Pyr_dend_gbar_ar': 1e-6,
+    }
+
+
+def get_L2Pyr_params_new():
+
+    return {# Soma
+        'L2Pyr_soma_L': 22.1,
+        'L2Pyr_soma_diam': 23.4,
+        'L2Pyr_soma_cm': 0.6195,
+        'L2Pyr_soma_Ra': 150.,
+
+        # Dendrites
+        'L2Pyr_dend_cm': 0.6195,
+        'L2Pyr_dend_Ra': 150.,
+
+        'L2Pyr_apicaltrunk_L': 59.5,
+        'L2Pyr_apicaltrunk_diam': 4.25,
+
+        'L2Pyr_apical1_L': 306.,
+        'L2Pyr_apical1_diam': 4.08,
+
+        'L2Pyr_apicaltuft_L': 238.,
+        'L2Pyr_apicaltuft_diam': 3.4,
+
+        'L2Pyr_apicaloblique_L': 340.,
+        'L2Pyr_apicaloblique_diam': 3.91,
+
+        'L2Pyr_basal1_L': 85.,
+        'L2Pyr_basal1_diam': 4.25,
+
+        'L2Pyr_basal2_L': 255.,
+        'L2Pyr_basal2_diam': 2.72,
+
+        'L2Pyr_basal3_L': 255.,
+        'L2Pyr_basal3_diam': 2.72,}
+
+def get_L5Pyr_params_new():
+
+    return {
+        # Soma
+        'L5Pyr_soma_L': 39.,
+        'L5Pyr_soma_diam': 28.9,
+        'L5Pyr_soma_cm': 1,
+        'L5Pyr_soma_Ra': 100, #Rich 495.73, Hay: 100
+
+        # Dendrite
+        'L5Pyr_dend_cm': 1,
+        'L5Pyr_dend_Ra': 100, #Rich 495.73, Hay: 100
+
+        'L5Pyr_apicaltrunk_L': 102.,
+        'L5Pyr_apicaltrunk_diam': 10.2,
+
+        'L5Pyr_apical1_L': 680.,
+        'L5Pyr_apical1_diam': 7.48,
+
+        'L5Pyr_apical2_L': 680.,
+        'L5Pyr_apical2_diam': 4.93,
+
+        'L5Pyr_apicaltuft_L': 425.,
+        'L5Pyr_apicaltuft_diam': 3.4,
+
+        'L5Pyr_apicaloblique_L': 255.,
+        'L5Pyr_apicaloblique_diam': 5.1,
+
+        'L5Pyr_basal1_L': 85.,
+        'L5Pyr_basal1_diam': 6.8,
+
+        'L5Pyr_basal2_L': 255.,
+        'L5Pyr_basal2_diam': 8.5,
+
+        'L5Pyr_basal3_L': 255.,
+        'L5Pyr_basal3_diam': 8.5,
     }
