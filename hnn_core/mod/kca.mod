@@ -23,7 +23,7 @@ NEURON {
     USEION ca READ cai
     RANGE n, gk, gbar
     RANGE ninf, ntau
-    GLOBAL Ra, Rb, caix
+    GLOBAL Ra, Rb, cai
     GLOBAL q10, temp, tadj, vmin, vmax, tshift
 }
 
@@ -95,13 +95,9 @@ DERIVATIVE states {
 }
 
 PROCEDURE rates(cai(mM)) {
-    a = Ra * cai^caix
-    b = Rb
+    
 
-    tadj = q10^((celsius - temp - tshift) / 10)
 
-    ntau = 1 / tadj / (a + b)
-    ninf = a / (a + b)
 
     : tinc = -dt * tadj
     : nexp = 1 - exp(tinc/ntau)

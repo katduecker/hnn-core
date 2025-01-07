@@ -7,7 +7,7 @@ import hnn_core
 from hnn_core import read_params
 from .network import Network
 from .params import _short_name
-from .cells_default import pyramidal_ca
+from .cells_default import pyramidal_ca, L5_pyramidal, L2_pyramidal, interneuron
 from .externals.mne import _validate_type
 
 
@@ -308,6 +308,92 @@ def calcium_model(params=None, add_drives_from_params=False,
 
     return net
 
+
+def new_calcium_model(params=None, add_drives_from_params=False,
+                  legacy_mode=False, mesh_shape=(10, 10)):
+
+
+    """"Initiate like old calcium model and then replace with new cells"""
+
+    hnn_core_root = op.dirname(hnn_core.__file__)
+    params_fname = op.join(hnn_core_root, 'param', 'default.json')
+    if params is None:
+        params = read_params(params_fname)
+
+    net = jones_2009_model(params, add_drives_from_params, legacy_mode,
+                           mesh_shape=mesh_shape)
+    
+
+    # L5 cells
+    params = {'soma': {'NaTs2_t': 20_400e-4, 
+                                'SKv3_1': 6_930e-4,
+                                'Nap_Et2': 17.2e-4,
+                                'Ca_HVA': 9.92e-04*.75,
+                                'Ca_LVAst': 34.3e-4*.75,
+                                'SK_E2': 441e-4,
+                                'Ih': 1e-4*1.1,
+                                'Im': 0,
+                                'K_Pst': 22.3e-4,
+                                'K_Tst': 812e-4,
+                                'pas': {'g': .338e-4,
+                                          'e': -90}},
+                        'basal': {'NaTs2_t': 20_400e-4*.1,
+                                  'SKv3_1': 6_930e-4*0.1,
+                                  'Ih': 5.14e-5,
+                                  'pas': {'g': 1.75e-5,
+                                          'e': -90}},
+                        'dend': {'NaTa_t': 0.0213,
+                                'SKv3_1': 0.000261,
+                                'Ca_HVA': {'gsoma': 2.78e-5, 'gdend': 2.78e-5*9, 'xkink': 1500},
+                                'Ca_LVAst': {'gsoma': 93.5e-6, 'gdend': 93.5e-6*4, 'xkink':1500},
+                                'SK_E2': 0.0012,
+                                'Ih': {'gbar': 1e-4, 'offset': -0.8696, 'slope': 5, 'factor_exp': 1.1},
+                                'Im': 0.0000675,
+                                'K_Pst': 0,
+                                'K_Tst': 0,
+                                'pas': {'g': 0.0000589*1.5,
+                                          'e': -85}}}
+    
+    cell_name = 'L5_pyramidal'
+    pos = net.cell_types[cell_name].pos
+    net.cell_types[cell_name] = L5_pyramidal(params, pos=pos, hotzone=[1500, 2000])
+
+    # L2 cells
+
+    params = {'soma': {'NaTs2_t': 0.926705*.65, 
+                                'SKv3_1': 0.102517*1.2,
+                                'Nap_Et2': 0,
+                                'Ca_HVA': 0.000374,
+                                'Ca_LVAst': 0.000778*.5,
+                                'SK_E2': 0.099433,
+                                'pas': 1.0 / 12000.0 * 1.2,
+                                'Ih': 0.000080,
+                                'Im': 0.000740*2},
+                        'dend': {'NaTs2_t': 0.008009,
+                                'SKv3_1': 0.000513,
+                                'Ca_HVA': 0.000374e-2,
+                                'Ca_LVAst': 0.000778e-2,
+                                'pas': 1.0 / 12000.0 * 15,
+                                'Ih': {'gbar': 0.000080, 'offset': -0.869600, 'slope':2.087+5, 'factor_exp':1/110},
+                                'Im': 0.000740},
+                        'e_pas': -75}
+    
+    cell_name = 'L2_pyramidal'
+    pos = net.cell_types[cell_name].pos
+    net.cell_types[cell_name] = L2_pyramidal(params, pos=pos)
+
+    # inhibitory neurons
+    params = {'soma': {'nas': 0.1125*1.5, 
+                    'kdr': 0.225*.75,
+                    'kd': 0.00039*10,
+                    'Ih': 2e-3,
+                    'pas': {'g': .0001,
+                            'e': -70}}}
+    cell_name = 'L2_basket'
+    pos = net.cell_types[cell_name].pos
+    net.cell_types[cell_name] = interneuron(cell_name=_short_name(cell_name), params=params, pos=pos)
+
+    return net
 
 def add_erp_drives_to_jones_model(net, tstart=0.0):
     """Add drives necessary for an event related potential (ERP)
