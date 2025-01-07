@@ -9,8 +9,11 @@ from .cell import Cell, Section
 
 from .params import compare_dictionaries
 from .params_default import (get_L2Pyr_params_default,
-                             get_L5Pyr_params_default)
+                             get_L5Pyr_params_default,
+                             get_L2Pyr_params_new,
+                             get_L5Pyr_params_new)
 
+from neuron import h
 # Units for e: mV
 # Units for gbar: S/cm^2 unless otherwise noted
 # units for taur: ms
@@ -432,5 +435,312 @@ def pyramidal_ca(cell_name, pos, override_params=None, gid=None):
 
     cell = pyramidal(cell_name, pos, override_params=override_params,
                      gid=gid)
+
+    return cell
+
+
+
+def expon_apical(gbar, offset, slope, factor_exp, x):
+
+    return gbar * (offset +  slope * np.exp(x*factor_exp))
+
+def linear_apical_l2(gbar, slope, offset, x):
+
+    return (slope * x + offset) * gbar
+
+def linear_apical_L5(gsoma, gdend, xkink, x):
+
+    return gsoma + np.min([xkink, x]) * (gdend - gsoma) / xkink
+
+def L5_pyramidal(params, pos, gid=None, hotzone=[1500, 2000]):
+        
+        p_all = get_L5Pyr_params_new()
+        
+        end_pts = {
+            'soma': [[0, 0, 0], [0, 0, 23]],
+            'apical_trunk': [[0, 0, 23], [0, 0, 83]],
+            'apical_oblique': [[0, 0, 83], [-150, 0, 83]],
+            'apical_1': [[0, 0, 83], [0, 0, 483]],
+            'apical_2': [[0, 0, 483], [0, 0, 883]],
+            'apical_tuft': [[0, 0, 883], [0, 0, 1133]],
+            'basal_1': [[0, 0, 0], [0, 0, -50]],
+            'basal_2': [[0, 0, -50], [-106, 0, -156]],
+            'basal_3': [[0, 0, -50], [106, 0, -156]]
+        }
+
+        cell_tree = {
+                ('apical_trunk', 0): [('apical_trunk', 1)],
+                ('apical_1', 0): [('apical_1', 1)],
+                ('apical_2', 0): [('apical_2', 1)],
+                ('apical_tuft', 0): [('apical_tuft', 1)],
+                ('apical_oblique', 0): [('apical_oblique', 1)],
+                ('basal_1', 0): [('basal_1', 1)],
+                ('basal_2', 0): [('basal_2', 1)],
+                ('basal_3', 0): [('basal_3', 1)],
+                # Different sections connected
+                ('soma', 0): [('soma', 1), ('basal_1', 0)],
+                ('soma', 1): [('apical_trunk', 0)],
+                ('apical_trunk', 1): [('apical_1', 0), ('apical_oblique', 0)],
+                ('apical_1', 1): [('apical_2', 0)],
+                ('apical_2', 1): [('apical_tuft', 0)],
+                ('basal_1', 1): [('basal_2', 0), ('basal_3', 0)]
+            }
+        
+        # build sections
+        section_names = list(end_pts.keys())
+
+        sections = _get_dends(p_all, cell_type='L5Pyr', section_names=section_names)
+        sections['soma'] = _get_pyr_soma(p_all, 'L5Pyr')
+
+        for sec_name, section in sections.items():
+            section._end_pts = end_pts[sec_name]
+
+            if sec_name == 'soma':
+                section.syns = ['gabaa', 'gabab']
+            else:
+                section.syns = ['ampa', 'nmda', 'gabaa', 'gabab']
+
+        sect_loc = {'proximal': ['apical_oblique', 'basal_2', 'basal_3'],
+                'distal': ['apical_tuft']}
+
+        synapses = _get_pyr_syn_props(p_all, 'L5Pyr')
+
+        cell = Cell('L5_pyr',pos,
+                sections=sections,
+                synapses=synapses,
+                sect_loc=sect_loc,
+                cell_tree=cell_tree,
+                gid=gid)
+
+        # cell.build()
+
+        h.distance(sec = cell._nrn_sections['soma'])
+        #params = get_rich_params()
+        # apical_oblique as part of basal because it's the target of the proximal drive?
+        basal_sections = ['basal_1', 'basal_2', 'basal_3', 'apical_oblique']
+
+        mechs = params['basal'].keys()
+        for sec_name in basal_sections:
+            for i, m in enumerate(mechs):
+                cell._nrn_sections[sec_name].insert(m)
+                for seg in cell._nrn_sections[sec_name]:
+                    if m == 'pas':
+                        seg.pas.g = params['basal']['pas']['g']
+                        seg.pas.e = params['basal']['pas']['e']
+                    else:
+                        gbar = params['basal'][m]
+                        setattr(seg, 'gbar_'+m, gbar)
+            
+        # soma
+        mechs = params['soma'].keys()
+        for i,m in enumerate(mechs):
+            cell._nrn_sections['soma'].insert(m)
+            for seg in cell._nrn_sections['soma']:
+                if m == 'pas':
+                    seg.pas.g = params['soma']['pas']['g']
+                    seg.pas.e = params['soma']['pas']['e']
+                else:
+                    setattr(seg, 'gbar_'+m, params['soma'][m])
+
+        cell._nrn_sections['soma'].insert('CaDynamics_E2')
+        for seg in cell._nrn_sections['soma']:
+            seg.CaDynamics_E2.decay = 460
+            seg.CaDynamics_E2.gamma = .000501
+
+
+        # apical sections
+        apical_sections = ['apical_trunk', 'apical_1', 'apical_2', 'apical_tuft']
+        
+        mechs = params['dend'].keys()
+        for sec_name in apical_sections:
+            for i,m in enumerate(mechs):
+                cell._nrn_sections[sec_name].insert(m)
+                for seg in cell._nrn_sections[sec_name]:
+                    if m == 'pas':
+                        seg.pas.g = params['dend']['pas']['g']      
+                        seg.pas.e = params['dend']['pas']['e']       
+                    elif m == 'Ih':
+                        distance = h.distance(seg.x, sec=seg.sec)
+                        gbar_fun = partial(expon_apical, params['dend'][m]['gbar'], params['dend'][m]['offset'], params['dend'][m]['slope'], params['dend'][m]['factor_exp'])
+                        gbar = gbar_fun(distance)
+                        setattr(seg, 'gbar_'+m, gbar)
+                    
+                    # set calcium according to function (new)
+                    elif m == 'Ca_HVA':
+                        distance = h.distance(seg.x, sec=seg.sec)
+                        gbar_fun = partial(linear_apical_L5, params['dend'][m]['gsoma'], params['dend'][m]['gdend'], params['dend'][m]['xkink'])
+                        gbar = gbar_fun(distance)
+                        if (distance >= hotzone[0]) and (distance < hotzone[1]):
+                            gbar *= 3
+                        setattr(seg, 'gbar_'+m, gbar)
+                    elif m == 'Ca_LVAst':
+                        distance = h.distance(seg.x, sec=seg.sec)
+                        gbar_fun = partial(linear_apical_L5, params['dend'][m]['gsoma'], params['dend'][m]['gdend'], params['dend'][m]['xkink'])
+                        gbar = gbar_fun(distance)
+                        if (distance >= hotzone[0]) and (distance < hotzone[1]):
+                            gbar *= 3
+                        setattr(seg, 'gbar_'+m, gbar) 
+                    else:
+                        setattr(seg, 'gbar_'+m, params['dend'][m])      
+
+            cell._nrn_sections[sec_name].insert('CaDynamics_E2')
+            for seg in cell._nrn_sections[sec_name]:
+                seg.CaDynamics_E2.decay = 122
+                seg.CaDynamics_E2.gamma = .000509
+
+        return cell
+
+def L2_pyramidal(params, pos, gid=None):
+
+    p_all = get_L2Pyr_params_new()
+
+    end_pts = {
+        'soma': [[-50, 0, 765], [-50, 0, 778]],
+        'apical_trunk': [[-50, 0, 778], [-50, 0, 813]],
+        'apical_oblique': [[-50, 0, 813], [-250, 0, 813]],
+        'apical_1': [[-50, 0, 813], [-50, 0, 993]],
+        'apical_tuft': [[-50, 0, 993], [-50, 0, 1133]],
+        'basal_1': [[-50, 0, 765], [-50, 0, 715]],
+        'basal_2': [[-50, 0, 715], [-156, 0, 609]],
+        'basal_3': [[-50, 0, 715], [56, 0, 609]],
+    }
+
+    cell_tree = {
+        ('apical_trunk', 0): [('apical_trunk', 1)],
+        ('apical_1', 0): [('apical_1', 1)],
+        ('apical_tuft', 0): [('apical_tuft', 1)],
+        ('apical_oblique', 0): [('apical_oblique', 1)],
+        ('basal_1', 0): [('basal_1', 1)],
+        ('basal_2', 0): [('basal_2', 1)],
+        ('basal_3', 0): [('basal_3', 1)],
+        # Different sections connected
+        ('soma', 0): [('soma', 1), ('basal_1', 0)],
+        ('soma', 1): [('apical_trunk', 0)],
+        ('apical_trunk', 1): [('apical_1', 0), ('apical_oblique', 0)],
+        ('apical_1', 1): [('apical_tuft', 0)],
+        ('basal_1', 1): [('basal_2', 0), ('basal_3', 0)]}
+    
+
+    # build sections
+    section_names = list(end_pts.keys())
+
+    sections = _get_dends(p_all, cell_type='L2Pyr', section_names=section_names)
+    sections['soma'] = _get_pyr_soma(p_all, 'L2Pyr')
+
+    for sec_name, section in sections.items():
+        section._end_pts = end_pts[sec_name]
+
+        if sec_name == 'soma':
+            section.syns = ['gabaa', 'gabab']
+        else:
+            section.syns = ['ampa', 'nmda', 'gabaa', 'gabab']
+    
+    synapses = _get_pyr_syn_props(p_all, 'L2Pyr')
+
+    sect_loc = {'proximal': ['apical_oblique', 'basal_2', 'basal_3'],
+                'distal': ['apical_tuft']}
+    # build cell
+    cell = Cell('L2_pyr', pos,
+                sections=sections,
+                synapses=synapses,
+                sect_loc=sect_loc,
+                cell_tree=cell_tree,
+                gid=gid)
+    cell.build()
+
+    h.distance(sec = cell._nrn_sections['soma'])
+
+    # apical_oblique as part of basal because it's the target of the proximal drive?
+    basal_sections = ['basal_1', 'basal_2', 'basal_3', 'apical_oblique']
+
+    for sec_name in basal_sections:
+        cell._nrn_sections[sec_name].insert('pas')
+        cell._nrn_sections[sec_name].insert('Ih')
+
+        # add Sodium and potassium
+        cell._nrn_sections[sec_name].insert('NaTs2_t')
+        cell._nrn_sections[sec_name].insert('SKv3_1')
+
+        for seg in cell._nrn_sections[sec_name]:
+            seg.pas.g = params['soma']['pas']
+            seg.pas.e = params['e_pas']
+            seg.gbar_Ih = 0.000080
+
+            setattr(seg, 'gbar_SKv3_1', params['soma']['SKv3_1']*0.1)
+            setattr(seg, 'gbar_NaTs2_t', params['soma']['NaTs2_t']*0.1)
+    
+    # soma
+    mechs = params['soma'].keys()
+    for i,m in enumerate(mechs):
+        cell._nrn_sections['soma'].insert(m)
+        for seg in cell._nrn_sections['soma']:
+            if m == 'pas':
+                seg.pas.g = params['soma']['pas']
+                seg.pas.e = params['e_pas']
+            else:
+                setattr(seg, 'gbar_'+m, params['soma'][m])
+
+    cell._nrn_sections['soma'].insert('CaDynamics_E2')
+    for seg in cell._nrn_sections['soma']:
+        seg.CaDynamics_E2.decay = 342.544232
+        seg.CaDynamics_E2.gamma = 0.000533
+
+
+    # apical sections
+    apical_sections = ['apical_trunk', 'apical_1', 'apical_tuft']
+
+    mechs = params['dend'].keys()
+    h.distance(sec = cell._nrn_sections['soma'])
+    for sec_name in apical_sections:
+        for i,m in enumerate(mechs):
+            for seg in cell._nrn_sections[sec_name]:
+                cell._nrn_sections[sec_name].insert(m)
+                distance = h.distance(seg.x, sec=seg.sec)
+                if m == 'pas':
+                    seg.pas.g = params['dend']['pas']              
+                    seg.pas.e = params['e_pas']
+                
+                elif m == 'Ih':
+                    gbar_fun = partial(expon_apical, params['dend'][m]['gbar'], params['dend'][m]['offset'], params['dend'][m]['slope'], params['dend'][m]['factor_exp'])
+                    gbar = gbar_fun(distance)
+                    setattr(seg, 'gbar_'+m, gbar)
+                else:
+                    gbar_fun = partial(linear_apical_l2, params['dend'][m], 0, 1)
+                    gbar = gbar_fun(distance)
+                    setattr(seg,'gbar_'+m, gbar)
+
+    return cell
+
+def interneuron(cell_name, params, pos, gid=None):
+
+    sections = dict()
+    sections['soma'] = _get_basket_soma(cell_name)
+    synapses = _get_basket_syn_props()
+    sections['soma'].syns = list(synapses.keys())
+
+    if cell_name == 'L2Basket':
+        sect_loc = dict(proximal=['soma'], distal=['soma'])
+    elif cell_name == 'L5Basket':
+        sect_loc = dict(proximal=['soma'], distal=[])
+
+    cell_tree = None
+    cell = Cell(cell_name, pos,
+                sections=sections,
+                synapses=synapses,
+                sect_loc=sect_loc,
+                cell_tree=cell_tree,
+                gid=gid)
+
+    cell.build()
+
+    mechs = params['soma'].keys()
+    for i,m in enumerate(mechs):
+        cell._nrn_sections['soma'].insert(m)
+        for seg in cell._nrn_sections['soma']:
+            if m == 'pas':
+                seg.pas.g = params['soma']['pas']['g']
+                seg.pas.e = params['soma']['pas']['e']
+            else:
+                setattr(seg, 'gbar_'+m, params['soma'][m])
 
     return cell
