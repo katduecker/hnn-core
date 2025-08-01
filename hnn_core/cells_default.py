@@ -18,7 +18,7 @@ from .params_default import (get_L2Pyr_params_default,
 # units for taur: ms
 
 
-def _get_dends(params, cell_type, section_names, v_init = {'all': -65}):
+def _get_dends(params, cell_type, section_names, v_init = {'all': -65}, increase_Ra_apical=False):
     """Convert a flat dictionary to a nested dictionary.
 
     Returns
@@ -36,6 +36,11 @@ def _get_dends(params, cell_type, section_names, v_init = {'all': -65}):
             else:
                 # map apicaltrunk -> apical_trunk etc.
                 middle = section_name.replace('_', '')
+
+            # hacky way of increasing Ra in apical tuft for new ca model...
+            if key == 'Ra' and increase_Ra_apical and section_name == 'apical_tuft':
+                params[f'{cell_type}_{middle}_{key}'] = 200
+            
             dend_prop[key] = params[f'{cell_type}_{middle}_{key}']
             if len(v_init) == 1:
                 v = v_init['all']
@@ -447,7 +452,7 @@ def pyramidal(cell_name, pos=(0, 0, 0), override_params=None, gid=None):
         raise ValueError(f'Unknown pyramidal cell type: {cell_name}')
 
 
-def _linear_g_at_dist(x, gsoma, gdend, xkink, hotzone_factor=1):
+def _linear_g_at_dist(x, gsoma, gdend, xkink, hotzone=[0, 0], hotzone_factor=1):
     """Compute linear distance-dependent ionic conductance.
 
     Parameters
@@ -470,7 +475,8 @@ def _linear_g_at_dist(x, gsoma, gdend, xkink, hotzone_factor=1):
     Returns gdend when x > xkink.
     """
     gbar = gsoma + np.min([xkink, x]) * (gdend - gsoma) / xkink
-    if x > xkink:
+
+    if x > hotzone[0] and x < hotzone[1]:
         gbar *= hotzone_factor
 
     return gbar
@@ -508,8 +514,8 @@ def pyramidal_l5ET(cell_name,pos, gid=None):
     p_all = get_L5PyrET_params()
 
     # override params according to function
-    gbar_Ca_HVA = partial(_linear_g_at_dist, gsoma=p_all['L5Pyr_dend_gbar_Ca_HVA']*1., gdend=p_all['L5Pyr_dend_gbar_Ca_HVA']*6.6, xkink=1500, hotzone_factor=3.9)
-    gbar_Ca_LVA = partial(_linear_g_at_dist, gsoma=p_all['L5Pyr_dend_gbar_Ca_LVAst'], gdend=p_all['L5Pyr_dend_gbar_Ca_LVAst']*2.75, xkink=1500, hotzone_factor=3)
+    gbar_Ca_HVA = partial(_linear_g_at_dist, gsoma=p_all['L5Pyr_dend_gbar_Ca_HVA']*1., gdend=p_all['L5Pyr_dend_gbar_Ca_HVA']*6, xkink = 1300, hotzone=[1300, 1500], hotzone_factor=10)
+    gbar_Ca_LVA = partial(_linear_g_at_dist, gsoma=p_all['L5Pyr_dend_gbar_Ca_LVAst'], gdend=p_all['L5Pyr_dend_gbar_Ca_LVAst']*2.75, xkink = 1300, hotzone=[1300, 1500], hotzone_factor=8)
     gbar_Ih = partial(_exp_g_at_dist, zero_val=p_all['L5Pyr_dend_gbar_Ih'],exp_term = 1./323, slope=2.087, offset=-.8696)
     
     # basal dendrites
@@ -572,7 +578,7 @@ def pyramidal_l5ET(cell_name,pos, gid=None):
                 'apical_2': -60,
                 'apical_tuft': -58}
 
-    sections_apcl = _get_dends(p_all, 'L5Pyr', section_names=['apical_trunk', 'apical_1', 'apical_2', 'apical_tuft'], v_init=v_init)
+    sections_apcl = _get_dends(p_all, 'L5Pyr', section_names=['apical_trunk', 'apical_1', 'apical_2', 'apical_tuft'], v_init=v_init, increase_Ra_apical=True)
     sections_basal = _get_basal(p_all, 'L5Pyr', section_names=['basal_1', 'basal_2', 'basal_3', 'apical_oblique'], v_init=v_init)
 
     sections = {**sections_apcl, **sections_basal}

@@ -530,7 +530,7 @@ def get_L5PyrET_params():
         'L5Pyr_dend_gbar_SK_E2': 0.0012/2*4,
         'L5Pyr_dend_gbar_Ca_HVA': 2.78e-5/2,
         'L5Pyr_dend_gbar_Ca_LVAst': 93.5e-6/2,
-        'L5Pyr_dend_gbar_Ih': 1e-4/2,
+        'L5Pyr_dend_gbar_Ih': 1e-4/1.7,
         'L5Pyr_dend_gbar_Im': 0.0000675/2,
         'L5Pyr_dend_gbar_K_Pst': 0,
         'L5Pyr_dend_gbar_K_Tst': 0,
