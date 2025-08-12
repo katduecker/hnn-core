@@ -514,7 +514,7 @@ def pyramidal_l5ET(cell_name,pos, gid=None):
     p_all = get_L5PyrET_params()
 
     # override params according to function
-    gbar_Ca_HVA = partial(_linear_g_at_dist, gsoma=p_all['L5Pyr_dend_gbar_Ca_HVA']*1., gdend=p_all['L5Pyr_dend_gbar_Ca_HVA']*15.2, xkink = 2000, hotzone=[1500, 1600], hotzone_factor=8.9)
+    gbar_Ca_HVA = partial(_linear_g_at_dist, gsoma=p_all['L5Pyr_dend_gbar_Ca_HVA']*1., gdend=p_all['L5Pyr_dend_gbar_Ca_HVA']*15.5, xkink = 2000, hotzone=[1500, 1600], hotzone_factor=8.9)
     gbar_Ca_LVA = partial(_linear_g_at_dist, gsoma=p_all['L5Pyr_dend_gbar_Ca_LVAst'], gdend=p_all['L5Pyr_dend_gbar_Ca_LVAst']*2.75, xkink = 2000, hotzone=[1500, 1600], hotzone_factor=4.6)
     gbar_Ih = partial(_exp_g_at_dist, zero_val=p_all['L5Pyr_dend_gbar_Ih'],exp_term = 1./323, slope=2.087, offset=-.8696)
     
