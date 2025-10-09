@@ -648,14 +648,14 @@ def pyramidal_l5ET(cell_name,pos, gid=None):
     for sec_name, section in sections.items():
             section._end_pts = end_pts[sec_name]
 
-            if sec_name == 'soma':
-                section.syns = ['gabaa', 'gabab']
-            else:
-                section.syns = ['ampa', 'nmda', 'gabaa', 'gabab']
+            # if sec_name == 'soma':
+            #     section.syns = ['gabaa', 'gabab']
+            # else:
+            section.syns = ['ampa', 'nmda', 'gabaa', 'gabab']
 
             section.mechs = p_mech[sec_name]
 
-    sect_loc = {'proximal': ['apical_oblique', 'basal_2', 'basal_3'],
+    sect_loc = {'proximal': [ 'apical_oblique', 'basal_2', 'basal_3'],
                     'distal': ['apical_tuft']}
 
     synapses = _get_pyr_syn_props(p_all, 'L5Pyr')
@@ -782,10 +782,10 @@ def pyramidal_l23(cell_name,pos, gid=None):
     for sec_name, section in sections.items():
             section._end_pts = end_pts[sec_name]
 
-            if sec_name == 'soma':
-                section.syns = ['gabaa', 'gabab']
-            else:
-                section.syns = ['ampa', 'nmda', 'gabaa', 'gabab']
+            # if sec_name == 'soma':
+            #     section.syns = ['gabaa', 'gabab']
+            # else:
+            section.syns = ['ampa', 'nmda', 'gabaa', 'gabab']
 
             section.mechs = p_mech[sec_name]
 
