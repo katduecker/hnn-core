@@ -356,8 +356,12 @@ class Network:
         for backward-compatibility with HNN GUI, and will be deprecated in a
         future release.
     legacy_mode : bool, default=False
-        Set to True by default to enable matching HNN GUI output when drives
+        Set to False by default to enable matching HNN GUI output when drives
         are added suitably. Will be deprecated in a future release.
+    legacy_mode_v2 : bool, default=False
+        If True, change the behavior of certain parts of the default model so that they
+        do not include several small bug-fixes and changes. Defaults to False. These
+        changes include fixes to how drive seeds are set and synaptic delays.
     mesh_shape : tuple of int (default: (10, 10))
         Defines the (n_x, n_y) shape of the grid of pyramidal cells.
     pos_dict : dict of list of tuple (x, y, z), optional
@@ -441,6 +445,7 @@ class Network:
         params,
         add_drives_from_params=False,
         legacy_mode=False,
+        legacy_mode_v2=True,  # AES debug
         mesh_shape=(10, 10),
         pos_dict=None,
         cell_types=None,
@@ -469,6 +474,7 @@ class Network:
                 DeprecationWarning,
                 stacklevel=1,
             )
+        self._legacy_mode_v2 = legacy_mode_v2
 
         self.cell_response = None
         # external drives and biases

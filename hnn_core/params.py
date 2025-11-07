@@ -159,10 +159,15 @@ def _extract_bias_specs_from_hnn_params(params, cellname_list):
     return bias_specs
 
 
-def _extract_drive_specs_from_hnn_params(params, cellname_list, legacy_mode=False):
+def _extract_drive_specs_from_hnn_params(
+    params,
+    cellname_list,
+    legacy_mode=False,
+    legacy_mode_v2=False,
+):
     """Create 'drive specification' dicts from saved parameters"""
     # convert legacy params-dict to legacy "feeds" dicts
-    p_common, p_unique = create_pext(params, params["tstop"])
+    p_common, p_unique = create_pext(params, params["tstop"], legacy_mode_v2)
 
     # Using 'feed' for legacy compatibility, 'drives' for new API
     drive_specs = dict()
@@ -473,7 +478,7 @@ def check_pois_synkeys(p):
 # creates the external feed params based on individual simulation params p
 
 
-def create_pext(p, tstop):
+def create_pext(p, tstop, legacy_mode_v2):
     """Indexable Python list of param dicts for parallel.
 
     Turn off individual feeds by commenting out relevant line here.
@@ -623,7 +628,7 @@ def create_pext(p, tstop):
             "L5_pyramidal": (
                 p["gbar_" + skey + "_L5Pyr_ampa"],
                 p["gbar_" + skey + "_L5Pyr_nmda"],
-                1.0,
+                1.0 if not legacy_mode_v2 else 0.1,
                 p["sigma_t_" + skey],
             ),
             "L2_basket": (
@@ -649,7 +654,7 @@ def create_pext(p, tstop):
         "L2_basket": (
             p["L2Basket_Gauss_A_weight"],
             p["L2Basket_Gauss_A_weight"],
-            0.1,
+            0.1 if not legacy_mode_v2 else 1.0,
             p["L2Basket_Gauss_mu"],
             p["L2Basket_Gauss_sigma"],
         ),
@@ -689,7 +694,7 @@ def create_pext(p, tstop):
         "L2_basket": (
             p["L2Basket_Pois_A_weight_ampa"],
             p["L2Basket_Pois_A_weight_nmda"],
-            0.1,
+            0.1 if not legacy_mode_v2 else 1.0,
             p["L2Basket_Pois_lamtha"],
         ),
         "L2_pyramidal": (

@@ -155,7 +155,10 @@ def _check_poisson_rates(rate_constant, target_populations, all_cell_types):
 
 def _add_drives_from_params(net):
     drive_specs = _extract_drive_specs_from_hnn_params(
-        net._params, list(net.cell_types.keys()), net._legacy_mode
+        net._params,
+        list(net.cell_types.keys()),
+        net._legacy_mode,
+        net._legacy_mode_v2,
     )
     bias_specs = _extract_bias_specs_from_hnn_params(
         net._params, list(net.cell_types.keys())
@@ -236,12 +239,11 @@ def _add_drives_from_params(net):
         _tstop = bias_specs["tonic"][cellname]["tstop"]
         net.add_tonic_bias(amplitude=_cell_types_amplitudes, t0=_t0, tstop=_tstop)
 
-    # KD 11/03: this is a problem for reproducibility in HNN core, as this is only done when loading params from .json files,
-    # so the seeds between the original simulation and loaded simulation will differ. Do we need this?
-    # # in HNN-GUI, seed is determined by "absolute GID" instead of the
-    # # gid offset with respect to the first cell of a population.
-    # for drive_name, drive in net.external_drives.items():
-    #     drive["event_seed"] += net.gid_ranges[drive_name][0]
+    if net._legacy_mode_v2:
+        # in [AES: the original?] HNN-GUI, seed is determined by "absolute GID" instead
+        # of the gid offset with respect to the first cell of a population.
+        for drive_name, drive in net.external_drives.items():
+            drive["event_seed"] += net.gid_ranges[drive_name][0]
 
 
 def _get_prng(seed, gid):
