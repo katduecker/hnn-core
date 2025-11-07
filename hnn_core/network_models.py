@@ -17,6 +17,7 @@ def jones_2009_model(
     params=None,
     add_drives_from_params=False,
     legacy_mode=False,
+    legacy_mode_v2=True,
     mesh_shape=(10, 10),
 ):
     """Instantiate the network model described in Jones et al. 2009
@@ -34,6 +35,10 @@ def jones_2009_model(
     legacy_mode : bool
         Set to False by default. Enables matching HNN GUI output when drives
         are added suitably. Will be deprecated in a future release.
+    legacy_mode_v2 : bool, default=False
+        If True, change the behavior of certain parts of the default model so that they
+        do not include several small bug-fixes and changes. Defaults to False. These
+        changes include fixes to how drive seeds are set and synaptic delays.
     mesh_shape : tuple of int (default: (10, 10))
         Defines the (n_x, n_y) shape of the grid of pyramidal cells.
 
@@ -140,6 +145,7 @@ def jones_2009_model(
         params,
         add_drives_from_params=add_drives_from_params,
         legacy_mode=legacy_mode,
+        legacy_mode_v2=legacy_mode_v2,
         mesh_shape=mesh_shape,
         pos_dict=pos_dict,
         cell_types=cell_types,
@@ -265,7 +271,11 @@ def jones_2009_model(
 
 
 def law_2021_model(
-    params=None, add_drives_from_params=False, legacy_mode=False, mesh_shape=(10, 10)
+    params=None,
+    add_drives_from_params=False,
+    legacy_mode=False,
+    legacy_mode_v2=True,
+    mesh_shape=(10, 10),
 ):
     """Instantiate the expansion of Jones 2009 model to study beta
     modulated ERPs as described in
@@ -301,7 +311,11 @@ def law_2021_model(
     """
 
     net = jones_2009_model(
-        params, add_drives_from_params, legacy_mode, mesh_shape=mesh_shape
+        params,
+        add_drives_from_params,
+        legacy_mode,
+        legacy_mode_v2=legacy_mode_v2,
+        mesh_shape=mesh_shape,
     )
 
     # Update biophysics (increase gabab duration of inhibition)
@@ -351,7 +365,11 @@ def law_2021_model(
 # Remove params argument after updating examples
 # (only relevant for Jones 2009 model)
 def calcium_model(
-    params=None, add_drives_from_params=False, legacy_mode=False, mesh_shape=(10, 10)
+    params=None,
+    add_drives_from_params=False,
+    legacy_mode=False,
+    legacy_mode_v2=True,
+    mesh_shape=(10, 10),
 ):
     """Instantiate the Jones 2009 model with improved calcium dynamics in
     L5 pyramidal neurons. For more details on changes to calcium dynamics
@@ -387,7 +405,11 @@ def calcium_model(
         params = read_params(params_fname)
 
     net = jones_2009_model(
-        params, add_drives_from_params, legacy_mode, mesh_shape=mesh_shape
+        params,
+        add_drives_from_params,
+        legacy_mode,
+        legacy_mode_v2=legacy_mode_v2,
+        mesh_shape=mesh_shape,
     )
 
     # Replace L5 pyramidal cell template with updated calcium
