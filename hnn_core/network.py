@@ -357,11 +357,14 @@ class Network:
         future release.
     legacy_mode : bool, default=False
         Set to False by default to enable matching HNN GUI output when drives
-        are added suitably. Will be deprecated in a future release.
+        are added suitably. Will be deprecated in a future release. If this is set to
+        True, this automatically enables `legacy_mode_v2`, since `legacy_mode` depends
+        on `legacy_mode_v2` being true.
     legacy_mode_v2 : bool, default=False
         If True, change the behavior of certain parts of the default model so that they
-        do not include several small bug-fixes and changes. Defaults to False. These
-        changes include fixes to how drive seeds are set and synaptic delays.
+        do not include several small bug-fixes and changes. This defaults to False,
+        unless `legacy_mode` is True, in which case it is set to True. These changes
+        include fixes to how drive seeds are set and synaptic delays.
     mesh_shape : tuple of int (default: (10, 10))
         Defines the (n_x, n_y) shape of the grid of pyramidal cells.
     pos_dict : dict of list of tuple (x, y, z), optional
@@ -474,6 +477,14 @@ class Network:
                 DeprecationWarning,
                 stacklevel=1,
             )
+
+            # AES: Because `legacy_mode` requires that drives' event seeds (see
+            # https://github.com/jonescompneurolab/hnn-core/blob/90f4d636b13647869f11825daf40eb985b6965cb/hnn_core/params.py#L244
+            # be altered both by the behavior of the `legacy_mode` flag, but also that
+            # drives' event seeds be based on the drives' GIDS. Because
+            # `legacy_mode_v2=False` stops the drives' seeds' dependency on GIDS,
+            # `legacy_mode=True` is dependent on `legacy_mode_v2` being True as well:
+            legacy_mode_v2 = True
         self._legacy_mode_v2 = legacy_mode_v2
 
         self.cell_response = None
