@@ -889,17 +889,6 @@ class Cell:
 
         return syn
     
-    # GABAB synapse
-    def syn_create_gabab(self, secloc, e, tau1, tau2):
-        if not isinstance(secloc, nrn.Segment):
-            raise TypeError(f'secloc must be instance of'
-                            f'nrn.Segment. Got {type(secloc)}')
-        syn = h.GABAB(secloc)
-        syn.e = e
-        syn.tau1 = tau1
-        syn.tau2 = tau2
-
-        return syn
 
     def setup_source_netcon(self, threshold):
         """Created for _PC.cell and specifies SOURCES of spikes.
