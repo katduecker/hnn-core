@@ -455,7 +455,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
         n_pyr_x=mesh_shape[0],
         n_pyr_y=mesh_shape[1],
         z_coord=1307.4,  # Default layer separation
-        inplane_distance=1.0,  # Default in-plane distance
+        inplane_distance=1.,  # in-plane distance appropriate for LFP recordings
     )
 
     # Map cell types to layer positions
@@ -482,7 +482,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
 
     # layer2 Pyr -> layer2 Pyr
     # layer5 Pyr -> layer5 Pyr
-    lamtha = 3.0
+    lamtha = 6.125                 # calculated from human data Campganola et al. 2022
     loc = 'proximal'
     target_cell ='L2_pyramidal'
     for receptor in ['nmda', 'ampa']:
@@ -541,7 +541,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
 
     # layer2 Pyr -> layer5 Pyr
     src_cell = 'L2_pyramidal'
-    lamtha = 3.
+    lamtha = 6.125
     receptor = 'ampa'
     for loc in ['proximal', 'distal']:
         key = f'gbar_L2Pyr_{_short_name(target_cell)}'
@@ -562,7 +562,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     # xx -> layer2 Basket
     src_cell = 'L2_pyramidal'
     target_cell = 'L2_basket'
-    lamtha = 3.
+    lamtha = 6.125
     key = f'gbar_L2Pyr_{_short_name(target_cell)}'
     weight = params[key]
     loc = 'soma'
@@ -592,7 +592,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
         allow_autapses=False)
 
     src_cell = 'L5_pyramidal'
-    lamtha = 3.
+    lamtha = 6.125
     key = f'gbar_L5Pyr_{_short_name(target_cell)}'
     weight = params[key]
     loc = 'soma'
@@ -601,7 +601,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
         src_cell, target_cell, loc, receptor, weight, delay, lamtha)
 
     src_cell = 'L2_pyramidal'
-    lamtha = 3.
+    lamtha = 6.125
     key = f'gbar_L2Pyr_{_short_name(target_cell)}'
     weight = params[key]
     loc = 'soma'
