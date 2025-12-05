@@ -255,18 +255,22 @@ def get_L2Pyr_params_default():
         'L2Pyr_ampa_e': 0.,
         'L2Pyr_ampa_tau1': 0.5,
         'L2Pyr_ampa_tau2': 5.,
+        'L2Pyr_ampa_type': "Exp2Syn",
 
         'L2Pyr_nmda_e': 0.,
         'L2Pyr_nmda_tau1': 1.,
         'L2Pyr_nmda_tau2': 20.,
+        'L2Pyr_nmda_type': "Exp2Syn",
 
         'L2Pyr_gabaa_e': -80.,
         'L2Pyr_gabaa_tau1': 0.5,
         'L2Pyr_gabaa_tau2': 5.,
+        'L2Pyr_gabaa_type': "Exp2Syn",
 
         'L2Pyr_gabab_e': -80.,
         'L2Pyr_gabab_tau1': 1.,
         'L2Pyr_gabab_tau2': 20.,
+        'L2Pyr_gabab_type': "Exp2Syn",
 
         # Biophysics soma
         'L2Pyr_soma_gkbar_hh2': 0.01,
@@ -325,18 +329,22 @@ def get_L5Pyr_params_default():
         'L5Pyr_ampa_e': 0.,
         'L5Pyr_ampa_tau1': 0.5,
         'L5Pyr_ampa_tau2': 5.,
+        'L5Pyr_ampa_type': "Exp2Syn",
 
         'L5Pyr_nmda_e': 0.,
         'L5Pyr_nmda_tau1': 1.,
         'L5Pyr_nmda_tau2': 20.,
+        'L5Pyr_nmda_type': "Exp2Syn",
 
         'L5Pyr_gabaa_e': -80.,
         'L5Pyr_gabaa_tau1': 0.5,
         'L5Pyr_gabaa_tau2': 5.,
+        'L5Pyr_gabaa_type': "Exp2Syn",
 
         'L5Pyr_gabab_e': -80.,
         'L5Pyr_gabab_tau1': 1.,
         'L5Pyr_gabab_tau2': 20.,
+        'L5Pyr_gabab_type': "Exp2Syn",
 
         # Biophysics soma
         'L5Pyr_soma_gkbar_hh2': 0.01,
@@ -362,7 +370,7 @@ def get_L5Pyr_params_default():
         'L5Pyr_dend_gbar_cat': 2e-4,
         'L5Pyr_dend_gbar_ar': 1e-6,
     }
-def get_L2Pyr_params_new():
+def get_L2Pyrhuman_params():
 
     return {# Soma
         'L2Pyr_soma_L': 22.1,
@@ -399,18 +407,22 @@ def get_L2Pyr_params_new():
         'L2Pyr_ampa_e': 0.,
         'L2Pyr_ampa_tau1': 0.5,
         'L2Pyr_ampa_tau2': 5.,
+        'L2Pyr_ampa_type': "Exp2Syn",
 
         'L2Pyr_nmda_e': 0.,
-        'L2Pyr_nmda_tau1': 1.,
-        'L2Pyr_nmda_tau2': 20.,
+        'L2Pyr_nmda_tau1': 15.,
+        'L2Pyr_nmda_tau2': 150.,
+        'L2Pyr_nmda_type': "NMDA",
 
         'L2Pyr_gabaa_e': -80.,
         'L2Pyr_gabaa_tau1': 0.5,
         'L2Pyr_gabaa_tau2': 5.,
+        'L2Pyr_gabaa_type': "Exp2Syn",
 
         'L2Pyr_gabab_e': -80.,
         'L2Pyr_gabab_tau1': 1.,
         'L2Pyr_gabab_tau2': 20.,
+        'L2Pyr_gabab_type': "Exp2Syn",
 
         # Biophysics soma
         'L2Pyr_soma_gbar_NaTs2_t_32d': 20_400e-4*1.2,
@@ -489,18 +501,22 @@ def get_L5PyrET_params():
         'L5Pyr_ampa_e': 0.,
         'L5Pyr_ampa_tau1': 0.5,
         'L5Pyr_ampa_tau2': 5.,
+        'L5Pyr_ampa_type': "Exp2Syn",
 
         'L5Pyr_nmda_e': 0.,
-        'L5Pyr_nmda_tau1': 1.,
-        'L5Pyr_nmda_tau2': 20.,
+        'L5Pyr_nmda_tau1': 15.,
+        'L5Pyr_nmda_tau2': 150.,
+        'L5Pyr_nmda_type': "NMDA",
 
         'L5Pyr_gabaa_e': -80.,
         'L5Pyr_gabaa_tau1': 0.5,
         'L5Pyr_gabaa_tau2': 5.,
+        'L5Pyr_gabaa_type': "Exp2Syn",
 
         'L5Pyr_gabab_e': -80.,
         'L5Pyr_gabab_tau1': 45,
         'L5Pyr_gabab_tau2': 200.,
+        'L5Pyr_gabab_type': "Exp2Syn",
 
         # Biophysics soma
         'L5Pyr_soma_gbar_NaTs2_t': 20_400e-4/2*1.5,
@@ -549,4 +565,19 @@ def get_Int_params():
             'Int_gbar_kd': 0.00039*2,
             'Int_gbar_Ih': 2e-5*9,
             'Int_g_pas': .0001,
-            'Int_e_pas': -70}
+            'Int_e_pas': -70,
+            # Synapses
+            'Int_ampa_e': 0.,
+            'Int_ampa_tau1': 0.5,
+            'Int_ampa_tau2': 5.,
+            'Int_ampa_type': "Exp2Syn",
+
+            'Int_nmda_e': 0.,
+            'Int_nmda_tau1': 15.,
+            'Int_nmda_tau2': 150.,
+            'Int_nmda_type': "NMDA",
+
+            'Int_gabaa_e': -80.,
+            'Int_gabaa_tau1': 0.5,
+            'Int_gabaa_tau2': 5.,
+            'Int_gabaa_type': "Exp2Syn"}

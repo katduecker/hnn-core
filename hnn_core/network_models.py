@@ -82,7 +82,7 @@ def jones_2009_model(
                 "electro_type": "inhibitory",
                 "layer": "2",
                 "measure_dipole": False,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
         "L2_pyramidal": {
@@ -92,7 +92,7 @@ def jones_2009_model(
                 "electro_type": "excitatory",
                 "layer": "2",
                 "measure_dipole": True,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
         "L5_basket": {
@@ -102,7 +102,7 @@ def jones_2009_model(
                 "electro_type": "inhibitory",
                 "layer": "5",
                 "measure_dipole": False,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
         "L5_pyramidal": {
@@ -112,7 +112,7 @@ def jones_2009_model(
                 "electro_type": "excitatory",
                 "layer": "5",
                 "measure_dipole": True,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
     }
@@ -415,7 +415,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
                 "electro_type": "inhibitory",
                 "layer": "2",
                 "measure_dipole": False,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
         "L2_pyramidal": {
@@ -425,7 +425,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
                 "electro_type": "excitatory",
                 "layer": "2",
                 "measure_dipole": True,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
         "L5_basket": {
@@ -435,7 +435,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
                 "electro_type": "inhibitory",
                 "layer": "5",
                 "measure_dipole": False,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
         "L5_pyramidal": {
@@ -445,7 +445,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
                 "electro_type": "excitatory",
                 "layer": "5",
                 "measure_dipole": True,
-                "reference": "https://doi.org/10.7554/eLife.51214",
+                "reference": "https://doi.org/10.7554/eLife.51214"
             },
         },
     }
