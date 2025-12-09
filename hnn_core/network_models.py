@@ -508,7 +508,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     # layer2 Basket -> layer2 Pyr
     src_cell = 'L2_basket'
     target_cell = 'L2_pyramidal'
-    lamtha = 50.
+    lamtha = 6.125
     loc = 'soma'
     receptor='gabaa'
     key = f'gbar_L2Basket_L2Pyr_{receptor}'
@@ -516,28 +516,31 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     net.add_connection(
         src_cell, target_cell, loc, receptor, weight, delay, lamtha)
     
-    receptor='gabab'
-    key = f'gbar_L2Basket_L2Pyr_{receptor}'
-    weight = params[key]
-    net.add_connection(
-        src_cell, target_cell, loc, receptor, weight, delay, lamtha)
+    # loc = 'distal'
+    # receptor='gabab'
+    # key = f'gbar_L2Basket_L2Pyr_{receptor}'
+    # weight = params[key]
+    # net.add_connection(
+    #     src_cell, target_cell, loc, receptor, weight, delay, lamtha)
         
 
     # layer5 Basket -> layer5 Pyr
     src_cell = 'L5_basket'
     target_cell = 'L5_pyramidal'
-    lamtha = 70.
+    lamtha = 6.125
     loc = 'soma'
     receptor = 'gabaa'
     key = f'gbar_L5Basket_{_short_name(target_cell)}_{receptor}'
     weight = params[key]
     net.add_connection(
         src_cell, target_cell, loc, receptor, weight, delay, lamtha)
-    receptor = 'gabab'
-    key = f'gbar_L5Basket_{_short_name(target_cell)}_{receptor}'
-    weight = params[key]
-    net.add_connection(
-        src_cell, target_cell, loc, receptor, weight, delay, lamtha)
+    
+    # loc = 'distal'
+    # receptor = 'gabab'
+    # key = f'gbar_L5Basket_{_short_name(target_cell)}_{receptor}'
+    # weight = params[key]
+    # net.add_connection(
+    #     src_cell, target_cell, loc, receptor, weight, delay, lamtha)
 
     # layer2 Pyr -> layer5 Pyr
     src_cell = 'L2_pyramidal'
@@ -555,7 +558,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     key = f'gbar_L2Basket_{_short_name(target_cell)}'
     weight = params[key]
     loc = 'distal'
-    receptor = 'gabaa'
+    receptor = 'gabab'
     net.add_connection(
         src_cell, target_cell, loc, receptor, weight, delay, lamtha)
 
@@ -571,7 +574,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
         src_cell, target_cell, loc, receptor, weight, delay, lamtha)
 
     src_cell = 'L2_basket'
-    lamtha = 20.
+    lamtha = 6.125
     key = f'gbar_L2Basket_{_short_name(target_cell)}'
     weight = params[key]
     loc = 'soma'
@@ -582,7 +585,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     # xx -> layer5 Basket
     src_cell = 'L5_basket'
     target_cell = 'L5_basket'
-    lamtha = 20.
+    lamtha = 6.125
     loc = 'soma'
     receptor = 'gabaa'
     key = f'gbar_L5Basket_{_short_name(target_cell)}'
@@ -608,12 +611,7 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     receptor = 'ampa'
     net.add_connection(
         src_cell, target_cell, loc, receptor, weight, delay, lamtha)
-    
-    
-    # Replace cells
 
-    
-    
     return net
 
 

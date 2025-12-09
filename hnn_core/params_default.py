@@ -412,7 +412,7 @@ def get_L2Pyrhuman_params():
         'L2Pyr_nmda_e': 0.,
         'L2Pyr_nmda_tau1': 15.,
         'L2Pyr_nmda_tau2': 150.,
-        'L2Pyr_nmda_type': "NMDA",
+        'L2Pyr_nmda_type': "MyExp2SynNMDABB",
 
         'L2Pyr_gabaa_e': -80.,
         'L2Pyr_gabaa_tau1': 0.5,
@@ -422,7 +422,7 @@ def get_L2Pyrhuman_params():
         'L2Pyr_gabab_e': -80.,
         'L2Pyr_gabab_tau1': 1.,
         'L2Pyr_gabab_tau2': 20.,
-        'L2Pyr_gabab_type': "Exp2Syn",
+        'L2Pyr_gabab_type': "gabab",
 
         # Biophysics soma
         'L2Pyr_soma_gbar_NaTs2_t_32d': 20_400e-4*1.2,
@@ -506,7 +506,7 @@ def get_L5PyrET_params():
         'L5Pyr_nmda_e': 0.,
         'L5Pyr_nmda_tau1': 15.,
         'L5Pyr_nmda_tau2': 150.,
-        'L5Pyr_nmda_type': "NMDA",
+        'L5Pyr_nmda_type': "MyExp2SynNMDABB",
 
         'L5Pyr_gabaa_e': -80.,
         'L5Pyr_gabaa_tau1': 0.5,
@@ -516,7 +516,7 @@ def get_L5PyrET_params():
         'L5Pyr_gabab_e': -80.,
         'L5Pyr_gabab_tau1': 45,
         'L5Pyr_gabab_tau2': 200.,
-        'L5Pyr_gabab_type': "Exp2Syn",
+        'L5Pyr_gabab_type': "gabab",
 
         # Biophysics soma
         'L5Pyr_soma_gbar_NaTs2_t': 20_400e-4/2*1.5,
@@ -575,7 +575,7 @@ def get_Int_params():
             'Int_nmda_e': 0.,
             'Int_nmda_tau1': 15.,
             'Int_nmda_tau2': 150.,
-            'Int_nmda_type': "NMDA",
+            'Int_nmda_type': "MyExp2SynNMDABB",
 
             'Int_gabaa_e': -80.,
             'Int_gabaa_tau1': 0.5,

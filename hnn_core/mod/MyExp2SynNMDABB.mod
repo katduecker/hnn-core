@@ -2,8 +2,8 @@
 NEURON {
 :  THREADSAFE
   POINT_PROCESS MyExp2SynNMDABB
-  RANGE e, i, iNMDA, s, sNMDA, r, tau1, tau2, Vwt, smax, sNMDAmax, g
-  NONSPECIFIC_CURRENT iNMDA
+  RANGE e, i, i, s, sNMDA, r, tau1, tau2, Vwt, smax, sNMDAmax, g
+  NONSPECIFIC_CURRENT i
   USEION ca READ cai,cao WRITE ica
   GLOBAL fracca
   RANGE ica
@@ -30,7 +30,7 @@ PARAMETER {
 
 ASSIGNED {
   v       (mV)
-  iNMDA   (nA)
+  i   (nA)
   sNMDA   (1)
   mgblock (1)
   factor2 (1)	
@@ -62,15 +62,16 @@ BREAKPOINT {
   LOCAL iTOT
   SOLVE state METHOD cnexp
   : Jahr Stevens 1990 J. Neurosci
-  mgblock = 1.0 / (1.0 + 0.28 * exp(-0.062(/mV) * v) )
+  : mgblock = 1.0 / (1.0 + 0.28 * exp(-0.062(/mV) * v) )
+  mgblock = 1
   sNMDA = B2 - A2
   if (sNMDA>sNMDAmax) {sNMDA=sNMDAmax}: saturation
 
   :iTOT = sNMDA * (v - e) * mgblock  
-  :iNMDA = iTOT * (1-fracca)
+  :i = iTOT * (1-fracca)
   :ica = iTOT * fracca
   
-  iNMDA = sNMDA * (v - e) * mgblock * (1-fracca)
+  i = sNMDA * (v - e) * mgblock * (1-fracca)
   if(fracca>0.0){ica =   sNMDA * ghkg(v,cai,cao,2) * mgblock * fracca}
   g = sNMDA * mgblock
 }
