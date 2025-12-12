@@ -619,7 +619,8 @@ def pyramidal_l5ET(cell_name,pos=(0,0,0), gid=None):
     mechanisms = {'NaTs2_t': ['gbar_NaTs2_t'], 
                     'SKv3_1': ['gbar_SKv3_1'],
                     'pas': ['g_pas', 'e_pas'],
-                    'Ih': ['gbar_Ih']}
+                    'Ih': ['gbar_Ih'],
+                    'CaDynamics_E2': ['decay_CaDynamics_E2', 'gamma_CaDynamics_E2']}
 
     section_names = ['basal_1', 'basal_2', 'basal_3', 'apical_oblique']
 
@@ -756,7 +757,8 @@ def pyramidal_l23(cell_name,pos=(0,0,0), gid=None):
     mechanisms = {'NaTs2_t_32d': ['gbar_NaTs2_t_32d'], 
                     'SKv3_1': ['gbar_SKv3_1'],
                     'pas': ['g_pas', 'e_pas'],
-                    'Ih': ['gbar_Ih']}
+                    'Ih': ['gbar_Ih'],
+                    'CaDynamics_E2': ['decay_CaDynamics_E2', 'gamma_CaDynamics_E2']}
 
     section_names = ['basal_1', 'basal_2', 'basal_3', 'apical_oblique']
 
@@ -816,7 +818,8 @@ def interneuron(cell_name,pos=(0,0,0), layer=2, gid=None):
                 'kdr': ['gbar_kdr'],
                 'kd': ['gbar_kd'],
                 'Ih': ['gbar_Ih'],
-                'pas': ['g_pas','e_pas']}
+                'pas': ['g_pas','e_pas'],
+                'CaDynamics_E2': ['decay_CaDynamics_E2', 'gamma_CaDynamics_E2']}
 
     sections['soma'].mechs = dict()
 

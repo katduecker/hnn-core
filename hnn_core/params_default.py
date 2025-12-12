@@ -412,7 +412,7 @@ def get_L2Pyrhuman_params():
         'L2Pyr_nmda_e': 0.,
         'L2Pyr_nmda_tau1': 15.,
         'L2Pyr_nmda_tau2': 150.,
-        'L2Pyr_nmda_type': "MyExp2SynNMDABB",
+        'L2Pyr_nmda_type': "NMDAeee_KD",
 
         'L2Pyr_gabaa_e': -80.,
         'L2Pyr_gabaa_tau1': 0.5,
@@ -420,8 +420,8 @@ def get_L2Pyrhuman_params():
         'L2Pyr_gabaa_type': "Exp2Syn",
 
         'L2Pyr_gabab_e': -80.,
-        'L2Pyr_gabab_tau1': 1.,
-        'L2Pyr_gabab_tau2': 20.,
+        'L2Pyr_gabab_tau1': 45.,
+        'L2Pyr_gabab_tau2': 200.,
         'L2Pyr_gabab_type': "gabab",
 
         # Biophysics soma
@@ -444,6 +444,8 @@ def get_L2Pyrhuman_params():
         'L2Pyr_basal_gbar_Ih': 0.00008/2,
         'L2Pyr_basal_g_pas': 1.0 / 13000.0,         # default read out from neuron
         'L2Pyr_basal_e_pas': -75, 
+        'L2Pyr_basal_decay_CaDynamics_E2' : 70,
+        'L2Pyr_basal_gamma_CaDynamics_E2' : 0.000533*2.5,
 
         # Biophysics dends
         'L2Pyr_dend_gbar_NaTa_t_32d': 0.008*0.0001,
@@ -455,8 +457,8 @@ def get_L2Pyrhuman_params():
         'L2Pyr_dend_gbar_SK_E2': 3.e-06,
         'L2Pyr_dend_g_pas': 1.0 /9000,
         'L2Pyr_dend_e_pas': -75,
-        'L2Pyr_dend_decay_CaDynamics_E2' : 70,
-        'L2Pyr_dend_gamma_CaDynamics_E2' : 0.000533*2.5}
+        'L2Pyr_dend_decay_CaDynamics_E2' : 50,
+        'L2Pyr_dend_gamma_CaDynamics_E2' : .0005096}
 
 def get_L5PyrET_params():
 
@@ -506,7 +508,7 @@ def get_L5PyrET_params():
         'L5Pyr_nmda_e': 0.,
         'L5Pyr_nmda_tau1': 15.,
         'L5Pyr_nmda_tau2': 150.,
-        'L5Pyr_nmda_type': "MyExp2SynNMDABB",
+        'L5Pyr_nmda_type': "NMDAeee_KD",
 
         'L5Pyr_gabaa_e': -80.,
         'L5Pyr_gabaa_tau1': 0.5,
@@ -540,6 +542,8 @@ def get_L5PyrET_params():
         'L5Pyr_basal_gbar_Ih': 5.14e-5/4*2,
         'L5Pyr_basal_g_pas': 1.75e-5/2*3,
         'L5Pyr_basal_e_pas': -90,
+        'L5Pyr_basal_decay_CaDynamics_E2' : 50,
+        'L5Pyr_basal_gamma_CaDynamics_E2' : .0005096,
 
         # Biophysics dends
         'L5Pyr_dend_gbar_NaTa_t': 0.0213/2,
@@ -566,16 +570,21 @@ def get_Int_params():
             'Int_gbar_Ih': 2e-5*9,
             'Int_g_pas': .0001,
             'Int_e_pas': -70,
+            # track calcium dynamics for new NMDA
+            'Int_decay_CaDynamics_E2' : 50,
+            'Int_gamma_CaDynamics_E2' : .0005096,
+
             # Synapses
             'Int_ampa_e': 0.,
-            'Int_ampa_tau1': 0.5,
-            'Int_ampa_tau2': 5.,
+            # Destexhe et al., 1998: interneuron rise and decay twice as fast!
+            'Int_ampa_tau1': 0.35,
+            'Int_ampa_tau2': 2.5,
             'Int_ampa_type': "Exp2Syn",
 
             'Int_nmda_e': 0.,
             'Int_nmda_tau1': 15.,
             'Int_nmda_tau2': 150.,
-            'Int_nmda_type': "MyExp2SynNMDABB",
+            'Int_nmda_type': "NMDAeee_KD",
 
             'Int_gabaa_e': -80.,
             'Int_gabaa_tau1': 0.5,

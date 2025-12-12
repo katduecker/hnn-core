@@ -32,7 +32,6 @@ PROCEDURE rates(v(mV)) {
   B = 1 / (1 + exp(0.062 (/mV) * -v) * (mg / 3.57 (mM)))
 }
  
-:** GABAa
 
 
 
