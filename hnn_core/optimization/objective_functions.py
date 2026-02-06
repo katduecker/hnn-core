@@ -246,7 +246,7 @@ def _corr_evoked(
     # objective for average over all trials (n_trials) simulated for each population
     obj = [_corr(dpl, obj_fun_kwargs["target"], tstop=tstop) for dpl in dpls]
     obj_values.append(obj)
-    obj_id = np.argmin(np.array(obj_values))
+   
     
     print(f'Mean Loss: {np.mean(obj):.2f}; Min Loss: {np.min(obj):.2f}')
 
