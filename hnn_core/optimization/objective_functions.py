@@ -287,14 +287,14 @@ def _rmse_corr_evoked(
                                     tstop=tstop,
                                     overwrite=False,
                                     clear_cache=False,
-                                    verbose=0,
+                                    verbose=new_net._verbose,
                                     bsl_cor=obj_fun_kwargs.get('bsl_cor', "jones"))
 
     res = batch_simulation.run(params_batch,
-                            n_jobs=obj_fun_kwargs.get('n_jobs', 50),
+                            n_jobs=obj_fun_kwargs.get('n_jobs', 1),
                             combinations=False,
                             backend='loky',
-                            verbose=0)
+                            verbose=50)
  
     dpls = list()
     for batch_res in res['simulated_data']:
