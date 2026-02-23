@@ -173,10 +173,8 @@ class BatchSimulate(object):
         self.postproc = postproc
         self.clear_cache = clear_cache
         self.summary_func = summary_func
-        self.bsl_cor = bsl_cor
         self.verbose = verbose
-        self.bsl_cor = bsl_cor
-        self.verbose = verbose
+
         self.bsl_cor = bsl_cor
 
     def run(
@@ -350,6 +348,7 @@ class BatchSimulate(object):
                 bsl_cor=self.bsl_cor,
                 verbose=self.verbose
             )
+
             results["dpl"] = dpl
 
         if self.save_spiking:
