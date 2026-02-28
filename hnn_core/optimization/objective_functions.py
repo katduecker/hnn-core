@@ -208,7 +208,10 @@ def _corr_evoked(
     # simulate dpl with predicted params
     new_net = initial_net.copy()
 
-    set_params_batch = lambda a,b: set_params(b, a) # need to fix this
+    set_params_batch = lambda a,b: set_params(b, a) # need to fix this; KD: I think this is just swapping inputs around because set_params_opt_drives(net, param_values
+                                                    # but in _run_single_sim in batch_simulate.py they are the other way around
+    # import pdb; pdb.set_trace()
+
 
 
     if 'bsl_cor' in obj_fun_kwargs:
@@ -248,7 +251,8 @@ def _corr_evoked(
 
     obj = [_corr(dpl, obj_fun_kwargs["target"], tstop=tstop) for dpl in dpls]
     obj_values.append(obj)
-
+    obj_id = np.argmin(np.array(obj_values))
+    
     print(f'Mean Loss: {np.mean(obj):.2f}; Min Loss: {np.min(obj):.2f}')
 
     return obj
