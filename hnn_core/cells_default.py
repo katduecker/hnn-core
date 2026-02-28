@@ -83,6 +83,39 @@ def _get_basal(params, cell_type, section_names, v_init = {'all': -65}):
     return sections
 
 
+# In the new model, the basal dendrites are differently tuned from the apical dendrites.
+def _get_basal(params, cell_type, section_names, v_init = {'all': -65}):
+    """Convert a flat dictionary to a nested dictionary.
+
+    Returns
+    -------
+    sections : dict
+        Dictionary of sections. Keys are section names
+    """
+    prop_names = ['L', 'diam', 'Ra', 'cm']
+    sections = dict()
+    for section_name in section_names:
+        dend_prop = dict()
+        middle = section_name.replace('_', '')
+        for key in prop_names:
+            if key in ['Ra', 'cm']:
+                middle = 'basal'
+            else:
+                # map apicaltrunk -> apical_trunk etc.
+                middle = section_name.replace('_', '')
+            dend_prop[key] = params[f'{cell_type}_{middle}_{key}']
+            if len(v_init) == 1:
+                v = v_init['all']
+            else:
+                v = v_init[section_name]
+        sections[section_name] = Section(L=dend_prop['L'],
+                                         diam=dend_prop['diam'],
+                                         Ra=dend_prop['Ra'],
+                                         cm=dend_prop['cm'],
+                                         v = v)
+    return sections
+
+
 def _get_pyr_soma(p_all, cell_type, v_init = -65):
     """Get somatic properties."""
     return Section(
@@ -808,7 +841,7 @@ def interneuron(cell_name,pos=(0,0,0), layer=2, gid=None):
     p_all = get_Int_params()
     sections = dict()
     sections['soma'] = _get_interneuron_soma(cell_name, v_init=-65)
-    synapses = _get_syn_props(p_all, 'Int', syn_types=["ampa", "nmda", "gabaa", "gabab"])
+    synapses = _get_syn_props(p_all, 'Int', syn_types=["ampa", "nmda", "gabaa"])
     sections['soma'].syns = list(synapses.keys())
 
     if layer == 2:

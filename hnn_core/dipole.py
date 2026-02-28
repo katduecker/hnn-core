@@ -52,6 +52,8 @@ def simulate_dipole(net, tstop, dt=0.025, n_trials=None, record_vsec=False,
         extracellular recordings etc. The preferred way is to use the
         :meth:`~hnn_core.dipole.Dipole.smooth` and
         :meth:`~hnn_core.dipole.Dipole.scale` methods instead. Default: False.
+    verbose : bool
+        If True, print simulation time outputs. Default: True.
     bsl_cor : str
         Baseline correction method. Default: 'jones'
         For jones_2009_model and law_2021_model, use method 'jones' (manual correction).
