@@ -208,8 +208,13 @@ def _corr_evoked(
     # simulate dpl with predicted params
     new_net = initial_net.copy()
 
-    set_params_batch = lambda a,b: set_params(b, a) # need to fix this; KD: I think this is just swapping inputs around because set_params_opt_drives(net, param_values
-                                                    # but in _run_single_sim in batch_simulate.py they are the other way around
+    set_params_batch = lambda a,b: set_params(b, a) # need to fix this
+
+
+    if 'bsl_cor' in obj_fun_kwargs:
+        bsl_cor = obj_fun_kwargs['bsl_cor']
+    else:
+        bsl_cor = "jones"
     batch_simulation = BatchSimulate(net=new_net,
                                     set_params=set_params_batch,
                                     save_outputs=False,
@@ -232,7 +237,6 @@ def _corr_evoked(
     dpls = list()
     for batch_res in res['simulated_data']:
         for data in batch_res:
-
             # smooth & scale all dipoles in this population (defined by n_trials)
             if "scale_factor" in obj_fun_kwargs:
                 [trl_dpl.scale(obj_fun_kwargs["scale_factor"]) for trl_dpl in data['dpl']]
@@ -242,14 +246,70 @@ def _corr_evoked(
             # average dipoles
             dpls.append(average_dipoles(data['dpl']))
 
+    obj = [_corr(dpl, obj_fun_kwargs["target"], tstop=tstop) for dpl in dpls]
+    obj_values.append(obj)
+
+    print(f'Mean Loss: {np.mean(obj):.2f}; Min Loss: {np.min(obj):.2f}')
+
+    return obj
+
+def _rmse_corr_evoked(
+    initial_net,
+    initial_params,
+    set_params,
+    predicted_params,
+    update_params,
+    obj_values,
+    tstop,
+    obj_fun_kwargs
+):
+    """TB ADDED
+    """
+
+    # params = update_params(initial_params, predicted_params)
+    predicted_params = np.array(predicted_params).reshape(-1, len(initial_params))
+    print(predicted_params.shape)
+    params_batch = {name: predicted_params[:, idx] for idx, name in enumerate(initial_params.keys())}
+
+    # simulate dpl with predicted params
+    new_net = initial_net.copy()
+
+    set_params_batch = lambda a,b: set_params(b, a) # need to fix this
+
+    if 'bsl_cor' in obj_fun_kwargs:
+        bsl_cor = obj_fun_kwargs['bsl_cor']
+    else:
+        bsl_cor = "jones"
+
+    batch_simulation = BatchSimulate(net=new_net,
+                                    set_params=set_params_batch,
+                                    save_outputs=False,
+                                    save_dpl=True,
+                                    tstop=tstop,
+                                    dt=0.5,
+                                    overwrite=False,
+                                    clear_cache=False,
+                                    verbose=0,
+                                    bsl_cor=bsl_cor)
+
+    res = batch_simulation.run(params_batch,
+                            n_jobs=50,
+                            combinations=False,
+                            backend='loky',
+                            verbose=0)
+ 
+    dpls = list()
+    for batch_res in res['simulated_data']:
+        for data in batch_res:
+            dpls.append(data['dpl'][0])
+
     # smooth & scale
     if "scale_factor" in obj_fun_kwargs:
         [dpl.scale(obj_fun_kwargs["scale_factor"]) for dpl in dpls]
     if "smooth_window_len" in obj_fun_kwargs:
         [dpl.smooth(obj_fun_kwargs["smooth_window_len"]) for dpl in dpls]
 
-    # objective for average over all trials (n_trials) simulated for each population
-    obj = [_corr(dpl, obj_fun_kwargs["target"], tstop=tstop) for dpl in dpls]
+    obj = [_rmse_corr(dpl, obj_fun_kwargs["target"], tstop=tstop) for dpl in dpls]
     obj_values.append(obj)
    
     
