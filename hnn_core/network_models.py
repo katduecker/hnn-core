@@ -591,9 +591,9 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     receptor = 'gabaa'
     net.add_connection(
         src_cell, target_cell, loc, receptor, weight, delay, lamtha, allow_autapses=False)
-    receptor = 'gabab'
-    net.add_connection(
-        src_cell, target_cell, loc, receptor, weight, delay, lamtha, allow_autapses=False)
+    #receptor = 'gabab'
+    #net.add_connection(
+     #   src_cell, target_cell, loc, receptor, weight, delay, lamtha, allow_autapses=False)
     
     # xx -> layer5 Basket
     src_cell = 'L5_basket'
@@ -606,10 +606,10 @@ def duecker_ET_model(params=None, add_drives_from_params=False,
     net.add_connection(
         src_cell, target_cell, loc, receptor, weight, delay, lamtha,
         allow_autapses=False)
-    receptor = 'gabab'
-    net.add_connection(
-        src_cell, target_cell, loc, receptor, weight, delay, lamtha,
-        allow_autapses=False)
+    #receptor = 'gabab'
+    #net.add_connection(
+    #    src_cell, target_cell, loc, receptor, weight, delay, lamtha,
+    #   allow_autapses=False)
    
 
     src_cell = 'L5_pyramidal'
