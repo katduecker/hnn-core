@@ -128,6 +128,7 @@ class BatchSimulate(object):
         summary_func=None,
         bsl_cor="jones",
         verbose=False,
+        bsl_cor="jones"
     ):
         _validate_type(net, Network, "net", "Network")
         _validate_type(tstop, types="numeric", item_name="tstop")
@@ -174,6 +175,7 @@ class BatchSimulate(object):
         self.summary_func = summary_func
         self.bsl_cor = bsl_cor
         self.verbose = verbose
+        self.bsl_cor = bsl_cor
 
     def run(
         self,
