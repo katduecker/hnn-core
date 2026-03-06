@@ -210,7 +210,6 @@ def _corr_evoked(
 
     set_params_batch = lambda a,b: set_params(b, a) # need to fix this; KD: I think this is just swapping inputs around because set_params_opt_drives(net, param_values
                                                     # but in _run_single_sim in batch_simulate.py they are the other way around
-
     batch_simulation = BatchSimulate(net=new_net,
                                     set_params=set_params_batch,
                                     save_outputs=False,
@@ -233,7 +232,7 @@ def _corr_evoked(
     dpls = list()
     for batch_res in res['simulated_data']:
         for data in batch_res:
-            # import pdb; pdb.set_trace()
+
             # smooth & scale all dipoles in this population (defined by n_trials)
             if "scale_factor" in obj_fun_kwargs:
                 [trl_dpl.scale(obj_fun_kwargs["scale_factor"]) for trl_dpl in data['dpl']]
@@ -242,6 +241,12 @@ def _corr_evoked(
             
             # average dipoles
             dpls.append(average_dipoles(data['dpl']))
+
+    # smooth & scale
+    if "scale_factor" in obj_fun_kwargs:
+        [dpl.scale(obj_fun_kwargs["scale_factor"]) for dpl in dpls]
+    if "smooth_window_len" in obj_fun_kwargs:
+        [dpl.smooth(obj_fun_kwargs["smooth_window_len"]) for dpl in dpls]
 
     # objective for average over all trials (n_trials) simulated for each population
     obj = [_corr(dpl, obj_fun_kwargs["target"], tstop=tstop) for dpl in dpls]

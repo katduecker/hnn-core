@@ -176,6 +176,7 @@ class BatchSimulate(object):
         self.bsl_cor = bsl_cor
         self.verbose = verbose
         self.bsl_cor = bsl_cor
+        self.verbose = verbose
 
     def run(
         self,
