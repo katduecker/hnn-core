@@ -498,10 +498,7 @@ def _run_opt_cma(
             tstop=tstop,
             obj_fun_kwargs=obj_fun_kwargs,
         )
-    # KD: I got a lot of solutions outside the 
-    #_b_obj_func = cma.BoundDomainTransform(_obj_func, constraints)  # evaluates fun only in the bounded domain
-
-    sigma = 1 / (np.array(constraints[1]) - np.array(constraints[0]))
+    sigma = 0.25 * (np.array(constraints[1]) - np.array(constraints[0]))
     es = cma.CMAEvolutionStrategy(list(initial_params.values()), 1, {'bounds': constraints,
                                                                     'tolfun': obj_fun_kwargs.get('tolfun', 0.01),
                                                                      'maxiter': max_iter,
