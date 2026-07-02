@@ -113,7 +113,10 @@ def simulate_dipole(
             duration = bias_cell_type["tstop"] - bias_cell_type["t0"]
             if duration < 0.0:
                 raise ValueError("Duration of tonic input cannot be negative")
-    if bsl_cor and (bsl_cor not in {"jones", "duecker"}):
+
+    if bsl_cor is None:
+        bsl_cor = "jones"
+    elif bsl_cor not in {"jones", "duecker"}:
         raise ValueError("'bsl_cor' must be 'jones' or 'duecker'")
 
     net._instantiate_drives(n_trials=n_trials, tstop=tstop)
