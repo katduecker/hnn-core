@@ -79,9 +79,9 @@ def _get_dends(
       value, e.g. `h.finitialize(-65)`.
     - The 'v0' (initial voltage) parameter is handled separately from other properties
       as it is a newer addition not found in legacy parameter files.
-    - In the (Jones et al., 2009) model, this is used to construct both apical and basal
-      dendrite sections. In the newer (Duecker 2025) model, this is only used for the
-      apical dendrite sections.
+    - In the (Neymotin et al., 2020) model, this is used to construct both apical and
+      basal dendrite sections. In the newer Duecker model, this is only used for the
+      apical dendrite sections (excluding apical_oblique).
     """
     prop_names = ["L", "diam", "Ra", "cm"]
     sections = dict()
@@ -115,6 +115,7 @@ def _get_dends(
 
 def _get_pyr_soma(params, cell_type, v_init=-65):
     """Create Pyramidal somatic Section objects from flat parameter dictionary.
+
     Extracts geometric and electrical properties (length, diameter, axial resistance,
     membrane capacitance) from a flat parameter dictionary, takes initial membrane
     voltage from an argument, and constructs a Section object for each Pyramidal soma
@@ -160,15 +161,54 @@ def _get_pyr_soma(params, cell_type, v_init=-65):
     )
 
 
-# In the new model, the basal dendrites are differently tuned from the apical dendrites.
 def _get_basal(params, cell_type, section_names, v_init={"all": -65}):
-    """Convert a flat dictionary to a nested dictionary.
+    """Create Duecker-only basal and apical_oblique dendritic Section objects.
+
+    Extracts geometric and electrical properties (length, diameter, axial resistance,
+    membrane capacitance) from a flat parameter dictionary, takes initial membrane
+    voltage from an argument, and constructs Section objects for each basal dendritic
+    compartment. Handles parameter key name transformations (e.g., 'apical_oblique' ->
+    'apicaloblique') required for lookup in the parameter dictionary.
+
+    *Importantly*, "Section objects" in this context are objects of the class
+    `hnn_core/cell.py::Section`, NOT the "true" NEURON sections. The "true" NEURON
+    sections are only created later, immediately before a simulation is run, using
+    `NetworkBuilder._build`.
+
+    Parameters
+    ----------
+    params : dict
+        Flat dictionary containing cell parameters with keys formatted as
+        '{cell_type}_{section}_{property}' (e.g., 'L5Pyr_apicaltrunk_L'). 'Ra' and 'cm'
+        use "dend" as the middle component rather than specific section names. This
+        'params' dictionary is expected to be constructed using
+        functions like `params_default.py::get_L2Pyr_params_default`.
+    cell_type : {'L2Pyr', 'L5Pyr'}
+        Cell type identifier used as prefix in parameter key lookups.
+    section_names : list of str
+        Names of dendritic sections to create (e.g., ["basal_1", "basal_2", "basal_3",
+        "apical_oblique"]). Underscores are removed for parameter lookups except for
+        'Ra' and 'cm'.
+    v_init : dict, default={"all": -65}
+        Initial membrane potential in mV. If dict contains single key "all", that value
+        is applied to all sections. Otherwise, keys must match 'section_names' for
+        section-specific initialization.
 
     Returns
     -------
-
     sections : dict
-        Dictionary of sections. Keys are section names
+        Dictionary mapping section names (str) to Section objects with attributes 'L',
+        'diam', 'Ra', and 'cm' set from 'params', and 'v0' set from argument.
+
+    Notes
+    -----
+    - KD: This function is where the initial voltages for the dendritic sections are
+      set; these voltages are not overridden by `h.finitialize` unless called with a
+      value, e.g. `h.finitialize(-65)`.
+    - The 'v0' (initial voltage) parameter is handled separately from other properties
+      as it is a newer addition not found in legacy parameter files.
+    - This is not used in the (Neymotin et al., 2020) model. In the newer Duecker model,
+      this is only used for the basal dendrite and "apical_oblique" dendrite sections.
     """
     prop_names = ["L", "diam", "Ra", "cm"]
     sections = dict()
@@ -559,8 +599,12 @@ def _get_basket_soma(v_init=-64.9737):
     )
 
 
-# values from Chamberland et al 2023
 def _get_interneuron_soma(cell_name, v_init=-69):
+    """Create Duecker-only interneuron soma Sections.
+
+    These values were taken from (Chamberland et al., 2023)
+    https://doi.org/10.1016/j.neuron.2023.01.017
+    """
     end_pts = [[0, 0, 0], [0, 0, 20.0]]
     return Section(L=20.0, diam=20.0, cm=1, Ra=200.0, end_pts=end_pts, v0=v_init)
 
@@ -1292,6 +1336,7 @@ def pyramidal_humanL23(cell_name, pos=(0, 0, 0), gid=None):
 
 def human_gen_interneuron(cell_name, pos=(0, 0, 0), layer=2, gid=None):
     """Create a Cell object of a "human generic interneuron" tuned to dynamics of aspiny human cells.
+
     Stands in for both Parvalbumin+ and Somatostatin+ cells in duecker_ET_model.
 
     Parameters
