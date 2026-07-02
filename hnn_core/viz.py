@@ -1053,12 +1053,6 @@ def plot_tfr_morlet(
         If True (default), adjust figure to include colorbar.
     colorbar_inside: bool, default False
         Put the color inside the heatmap if True.
-    vmin : float | None
-        Minimum value for the color scale. If None, the minimum of the data is
-        used.
-    vmax : float | None
-        Maximum value for the color scale. If None, the maximum of the data is
-        used.
     show : bool
         If True, show the figure
 
