@@ -125,7 +125,7 @@ def test_create_cell_coords():
     assert len(layer_dict["L5_bottom"]) == 9
 
 
-@pytest.mark.parametrize("mesh_shape", [(2, 2), (2, 3)])
+@pytest.mark.parametrize("mesh_shape", [(1, 1), (2, 2), (2, 3)])
 def test_custom_network_coords(mesh_shape):
     params = read_params(params_fname)
 
