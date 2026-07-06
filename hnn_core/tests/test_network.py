@@ -1,6 +1,7 @@
 # Authors: Mainak Jas <mainakjas@gmail.com>
 
 from contextlib import redirect_stdout
+from copy import deepcopy
 import io
 import os.path as op
 import tempfile
@@ -261,6 +262,55 @@ def test_custom_network_coords(mesh_shape):
     assert dipole_custom is not None
     assert len(dipole_custom[0].times) > 0
     assert np.all(np.isfinite(dipole_custom[0].data["agg"]))
+
+
+def test_custom_network_coords_validation():
+    """Test input validation of custom pos_dict/cell_types in Network"""
+    params = read_params(params_fname)
+
+    custom_cell_types = {
+        "L2_pyramidal": {
+            "cell_object": pyramidal(cell_name="L2_pyramidal"),
+            "cell_metadata": {
+                "morpho_type": "pyramidal",
+                "electro_type": "excitatory",
+                "layer": "2",
+                "measure_dipole": True,
+                "reference": "https://doi.org/10.7554/eLife.51214",
+            },
+        },
+    }
+    custom_layer_dict = _create_cell_coords(
+        n_pyr_x=2, n_pyr_y=2, z_coord=1307.4, inplane_distance=1.0
+    )
+    custom_pos_dict = {
+        "L2_pyramidal": custom_layer_dict["L2_bottom"],
+        "origin": custom_layer_dict["origin"],
+    }
+
+    # cell_types provided without pos_dict
+    with pytest.raises(ValueError, match="you must also provide a custom 'pos_dict'"):
+        Network(params, cell_types=custom_cell_types)
+
+    # pos_dict provided without cell_types
+    with pytest.raises(ValueError, match="you must also provide custom 'cell_types'"):
+        Network(params, pos_dict=custom_pos_dict)
+
+    with pytest.raises(ValueError, match="Origin must be defined"):
+        custom_pos_dict_no_origin = {
+            "L2_pyramidal": custom_layer_dict["L2_bottom"],
+        }
+        Network(
+            params, pos_dict=custom_pos_dict_no_origin, cell_types=custom_cell_types
+        )
+
+    # cell_types has a key not present in pos_dict
+    cell_types_extra_key = deepcopy(custom_cell_types)
+    cell_types_extra_key["L5_pyramidal"] = deepcopy(custom_cell_types["L2_pyramidal"])
+    with pytest.raises(
+        ValueError, match="All keys of 'pos_dict' must be present in 'cell_types'"
+    ):
+        Network(params, pos_dict=custom_pos_dict, cell_types=cell_types_extra_key)
 
 
 def test_network_models():

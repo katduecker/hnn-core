@@ -361,18 +361,20 @@ class Network:
     mesh_shape : tuple of int (default: (10, 10))
         Defines the (n_x, n_y) shape of the grid of pyramidal cells.
     pos_dict : dict of list of tuple (x, y, z), optional
-        Dictionary containing the coordinate positions of all cells.
-        Keys are 'L2_pyramidal', 'L5_pyramidal', 'L2_basket', 'L5_basket',
-        or any external drive name.
+        Dictionary containing the coordinate positions of all cells. Keys are
+        'L2_pyramidal', 'L5_pyramidal', 'L2_basket', 'L5_basket', or any external drive
+        name. If you specify "pos_dict", you MUST also specify your own "cell_types"
+        argument (see below).
     cell_types : dict of dict of (Cell | dict), optional
         Dictionary containing names of real cell types in the network (e.g. 'L2_basket')
-        as keys and child-dictionaries describing the cell type. The child-dictionary
-        contains two keys: "cell_object" and "cell_metadata". The value of "cell_object"
-        is the corresponding Cell instance of the cell type being described, and this
-        instance is used as a template for the other cells of its type in the
-        population. The value of "cell_metadata" is a dictionary containing several
-        key-values pairs that describe different aspects of the cell type, described
-        below:
+        as keys and child-dictionaries describing the cell type. If you specify
+        "cell_types", you MUST also specify your own "pos_dict" argument (see
+        above). The child-dictionary contains two keys: "cell_object" and
+        "cell_metadata". The value of "cell_object" is the corresponding Cell instance
+        of the cell type being described, and this instance is used as a template for
+        the other cells of its type in the population. The value of "cell_metadata" is a
+        dictionary containing several key-values pairs that describe different aspects
+        of the cell type, described below:
             - "morpho_type" : either "basket" or "pyramidal"
             - "electro_type" : either "inhibitory" or "excitatory"
             - "layer" : either "2" or "5"
@@ -485,6 +487,10 @@ class Network:
         # extracellular recordings (if applicable)
         self.rec_arrays = dict()
 
+        # simulation-time params
+        self._tstop = None
+        self._dt = None
+
         # contents of pos_dict determines all downstream inferences of
         # cell counts, real and artificial
         self._n_cells = 0  # used in tests and MPIBackend checks
@@ -505,18 +511,48 @@ class Network:
         self._N_pyr_y = mesh_shape[1]
 
         # Handle positions and cell types
-        if pos_dict is not None and cell_types is not None:
-            # Use provided positions and cell types
+        # ------------------------------------------------------------------------------
+        if cell_types is not None or pos_dict is not None:
+            # Input validation
+            # --------------------------------------------------------------------------
+            # If a user is specifying their own cell_types, they must also specify
+            # pos_dict:
+            if pos_dict is None:
+                raise ValueError(
+                    "If custom 'cell_types' are provided to Network, you must "
+                    "also provide a custom 'pos_dict'."
+                )
+            # Vice versa:
+            elif cell_types is None:
+                raise ValueError(
+                    "If a custom 'pos_dict' is provided to Network, you must "
+                    "also provide custom 'cell_types'."
+                )
+            # Test that the keys of pos_dict and cell_types are well-formed:
+            pos_dict_keys = set(pos_dict.keys())
+            if "origin" not in pos_dict_keys:
+                raise ValueError("Origin must be defined for your custom 'pos_dict'")
+            pos_dict_keys.remove("origin")
+            cell_type_keys = set(cell_types.keys())
+            if not (cell_type_keys <= pos_dict_keys):
+                raise ValueError(
+                    "All keys of 'pos_dict' must be present in 'cell_types'. "
+                    f"'pos_dict' keys: {pos_dict_keys}, 'cell_types' keys: {cell_type_keys}"
+                )
             _validate_type(pos_dict, dict, "pos_dict")
             _validate_type(cell_types, dict, "cell_types")
+
+            # Use provided positions and cell types
+            # --------------------------------------------------------------------------
             self.pos_dict = deepcopy(pos_dict)
 
             # Add cell types from provided dictionary
             for cell_name, cell_template in cell_types.items():
-                if cell_name in self.pos_dict:
-                    self._add_cell_type(
-                        cell_name, self.pos_dict[cell_name], cell_template=cell_template
-                    )
+                self._add_cell_type(
+                    cell_name,
+                    self.pos_dict[cell_name],
+                    cell_template=cell_template,
+                )
 
             # read out inplane_distance
             if hasattr(self, "_inplane_distance") is False:
@@ -597,11 +633,9 @@ class Network:
                     cell_template=cell_template,
                 )
 
+        # Must happen after cell types are added
         if add_drives_from_params:
             _add_drives_from_params(self)
-
-        self._tstop = None
-        self._dt = None
 
     def __repr__(self):
         class_name = self.__class__.__name__
