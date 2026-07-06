@@ -539,6 +539,12 @@ class Network:
                     "All keys of 'pos_dict' must be present in 'cell_types'. "
                     f"'pos_dict' keys: {pos_dict_keys}, 'cell_types' keys: {cell_type_keys}"
                 )
+            for ct in cell_types.keys():
+                if "zdist_origin" not in cell_types[ct]["cell_metadata"].keys():
+                    raise ValueError(
+                        "zdist_origin must be defined for each cell type in "
+                        "your custom 'cell_types' metadata"
+                    )
             _validate_type(pos_dict, dict, "pos_dict")
             _validate_type(cell_types, dict, "cell_types")
 

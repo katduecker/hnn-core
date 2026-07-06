@@ -137,6 +137,7 @@ def test_custom_network_coords(mesh_shape):
                 "morpho_type": "pyramidal",
                 "electro_type": "excitatory",
                 "layer": "2",
+                "zdist_origin": 1,
                 "measure_dipole": True,
                 "reference": "https://doi.org/10.7554/eLife.51214",
             },
@@ -147,6 +148,7 @@ def test_custom_network_coords(mesh_shape):
                 "morpho_type": "pyramidal",
                 "electro_type": "excitatory",
                 "layer": "5",
+                "zdist_origin": 0,
                 "measure_dipole": True,
                 "reference": "https://doi.org/10.7554/eLife.51214",
             },
@@ -274,6 +276,7 @@ def test_custom_network_coords_validation():
             "cell_metadata": {
                 "morpho_type": "pyramidal",
                 "electro_type": "excitatory",
+                "zdist_origin": 1,
                 "layer": "2",
                 "measure_dipole": True,
                 "reference": "https://doi.org/10.7554/eLife.51214",
@@ -311,6 +314,24 @@ def test_custom_network_coords_validation():
         ValueError, match="All keys of 'pos_dict' must be present in 'cell_types'"
     ):
         Network(params, pos_dict=custom_pos_dict, cell_types=cell_types_extra_key)
+
+    with pytest.raises(ValueError, match="zdist_origin must be defined"):
+        cell_types_no_zdist = {
+            "L2_pyramidal": {
+                "cell_object": pyramidal(cell_name="L2_pyramidal"),
+                "cell_metadata": {
+                    "morpho_type": "pyramidal",
+                    "electro_type": "excitatory",
+                    "layer": "2",
+                    "measure_dipole": True,
+                    "reference": "https://doi.org/10.7554/eLife.51214",
+                },
+            },
+        }
+        Network(params, pos_dict=custom_pos_dict, cell_types=cell_types_no_zdist)
+
+    # Test successful run
+    Network(params, pos_dict=custom_pos_dict, cell_types=custom_cell_types)
 
 
 def test_network_models():
