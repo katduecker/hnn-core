@@ -560,44 +560,56 @@ class Network:
                     cell_template=cell_template,
                 )
 
-            # read out inplane_distance
-            if hasattr(self, "_inplane_distance") is False:
-                inlay_dist = []
-                for cell_type in self.cell_types.keys():
-                    current_dist = np.mean(
-                        np.concatenate(
-                            (
-                                np.diff(
-                                    np.unique(np.array(self.pos_dict[cell_type])[:, 0])
-                                ),
-                                np.diff(
-                                    np.unique(np.array(self.pos_dict[cell_type])[:, 1])
-                                ),
-                            )
+            # Since we're in the initializer, we must calculate our inplane distance
+            # strictly from the custom pos_dict:
+            inlay_dist = []
+            for cell_type in self.cell_types.keys():
+                # For this cell type, this does the following (best understood by
+                #     reading the code from the inside out):
+                # 1. Grab all the unique, sorted x-coordinates of the cell type.
+                # 2. Grab all the distances between each unique, sorted x-coordinate of
+                #     the cell type.
+                # 3. Grab all the unique, sorted y-coordinates of the cell type.
+                # 4. Grab all the distances between each unique, sorted y-coordinate of
+                #    the cell type.
+                # 5. Concatenate the distances from steps 2 and 4 into a single array
+                #    of distances.
+                # 6. Final step: Take the mean of the resulting array. This gets you an
+                #     "average in-plane distance" for this cell type in the X and Y
+                #     (but not Z!) directions.
+                current_dist = np.mean(
+                    np.concatenate(
+                        (
+                            np.diff(
+                                np.unique(np.array(self.pos_dict[cell_type])[:, 0])
+                            ),
+                            np.diff(
+                                np.unique(np.array(self.pos_dict[cell_type])[:, 1])
+                            ),
                         )
                     )
-                    inlay_dist.append(current_dist)
-                self._inplane_distance = np.min(np.array(inlay_dist))
+                )
+                inlay_dist.append(current_dist)
+            self._inplane_distance = np.min(np.array(inlay_dist))
 
-            # read out layer separation
-            if hasattr(self, "_layer_separation") is False:
-                for cell_type in self.cell_types:
-                    if (
-                        "zdist_origin"
-                        in self.cell_types[cell_type]["cell_metadata"].keys()
-                    ):
-                        if (
-                            self.cell_types[cell_type]["cell_metadata"]["zdist_origin"]
-                            == 1
-                        ):
-                            self._layer_separation = np.mean(
-                                np.array(self.pos_dict[cell_type])[:, 2]
-                            )
+            # Since we're in the initializer, we must also calculate our layer separation
+            # strictly from the custom pos_dict:
+            for cell_type in self.cell_types:
+                if self.cell_types[cell_type]["cell_metadata"]["zdist_origin"] == 1:
+                    # Define "layer separation" using the mean z-coordinate (the third
+                    # element of the pos_dict tuples) of the celltype that has
+                    # `zdist_origin == 1` in its metadata (typically the layer
+                    # 2/3 pyramidal cell type). This is meant to identify the distance
+                    # between the somas of pyramidal cells in layer 2/3 versus those in
+                    # layer 5.
+                    #
+                    # KDTODO this is in microns, right? this comes out to about 1307.4ish
+                    self._layer_separation = np.mean(
+                        np.array(self.pos_dict[cell_type])[:, 2]
+                    )
 
-            # update drives to be positioned at network origin
-            for drive_name, drive in self.external_drives.items():
-                pos = [self.pos_dict["origin"]] * drive["n_drive_cells"]
-                self.pos_dict[drive_name] = pos
+            # Since we're in the initializer, we do not need to reposition any drives
+            # after creating the above.
 
         else:
             # Default behavior - create standard network
