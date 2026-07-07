@@ -798,6 +798,17 @@ class Network:
             The separation of pyramidal cell soma layers 2/3 and 5. Note that
             this parameter does not affect the amplitude of the dipole moment.
         """
+        # Input validation
+        # ------------------------------------------------------------------------------
+        if inplane_distance is None and layer_separation is None:
+            raise ValueError(
+                "At least one of inplane_distance or layer_separation must be provided"
+            )
+        if np.isnan(self._inplane_distance) or np.isclose(self._inplane_distance, 0.0):
+            raise ValueError(
+                "Cannot reset cell positions because the current in-plane distance "
+                "is NaN or zero. Something has gone wrong at Network creation time."
+            )
         if inplane_distance is None:
             inplane_distance = self._inplane_distance
         _validate_type(inplane_distance, (float, int), "inplane_distance")
