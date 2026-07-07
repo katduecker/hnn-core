@@ -724,16 +724,14 @@ class Network:
 
         return True
 
-    def set_cell_positions(
+    def _create_default_cell_positions(
         self,
-        *,
-        inplane_distance=None,
-        layer_separation=None,
+        inplane_distance,
+        layer_separation,
     ):
-        """Set relative positions of cells arranged in a square grid
+        """Set the relative positions of cells (pos_dict) assuming default cell types.
 
-         Note that it is possible to change only a subset of the parameters
-         (the default value of each is None, which implies no change).
+        This arranges them in a square grid.
 
          Parameters
          ----------
@@ -751,8 +749,6 @@ class Network:
         If a `pos_dict` is already provided (i.e. manually specifying cell positions when creating the Network), then this function will shift the existing positions. If there is no pre-defined `pos_dict`, then a `pos_dict` is created where cells are positioned on a grid.
 
         """
-
-        # If cell positions are set for the first time -> default model with default cell names
         # Get layer positions using layer dict
         layer_dict = _create_cell_coords(
             n_pyr_x=self._N_pyr_x,
@@ -786,7 +782,7 @@ class Network:
         """Reset relative positions of cells arranged in a square grid.
 
         Note that it is possible to change one of the parameters without changing the
-        other.x
+        other.
 
         Parameters
         ----------
@@ -802,7 +798,7 @@ class Network:
         # ------------------------------------------------------------------------------
         if inplane_distance is None and layer_separation is None:
             raise ValueError(
-                "At least one of inplane_distance or layer_separation must be provided"
+                "At least one of inplane_distance or layer_separation must be provided."
             )
         if np.isnan(self._inplane_distance) or np.isclose(self._inplane_distance, 0.0):
             raise ValueError(
@@ -816,7 +812,6 @@ class Network:
             raise ValueError(
                 f"In-plane distance must be positive, got: {inplane_distance}"
             )
-
         if layer_separation is None:
             layer_separation = self._layer_separation
         _validate_type(layer_separation, (float, int), "layer_separation")
