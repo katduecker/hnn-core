@@ -489,48 +489,144 @@ def test_network_models():
         assert np.all(np.diff(k_gbar, n=2) > 0)  # positive 2nd derivative
 
 
-def test_network_cell_positions():
+@pytest.mark.parametrize("mesh_shape", [(1, 1), (3, 3), (10, 10)])
+def test_network_cell_positions(mesh_shape):
     """ "Test manipulation of cell positions in the network object"""
 
-    net = neymotin_2020_model()
-    assert np.isclose(net._inplane_distance, 1.0)  # default
-    assert np.isclose(net._layer_separation, 1307.4)  # default
+    # Setup our network, default params, and expected post-change params
+    # ----------------------------------------------------------------------------------
+    net = neymotin_2020_model(add_drives_from_params=True, mesh_shape=mesh_shape)
+    default_inplane_distance = 1.0  # default
+    default_layer_separation = 1307.4  # default
+    assert np.isclose(net._inplane_distance, default_inplane_distance)  # check default
+    assert np.isclose(net._layer_separation, default_layer_separation)  # check default
 
-    # change both from their default values
-    net.set_cell_positions(inplane_distance=2.0)
-    assert np.isclose(net._layer_separation, 1307.4)  # still the default
-    net.set_cell_positions(layer_separation=1000.0)
-    assert np.isclose(net._inplane_distance, 2.0)  # mustn't change
+    initial_origin = net.pos_dict["origin"]
+    # capture pre-reset X/Y positions of both cell types and drives, so that we
+    # can later confirm they are scaled
+    initial_cell_xy = {
+        cell_type: np.array(net.pos_dict[cell_type])[:, :2]
+        for cell_type in net.cell_types
+    }
+    initial_drive_xy = {
+        drive_name: np.array(net.pos_dict[drive_name])[:, :2]
+        for drive_name in net.external_drives
+    }
 
-    # check that in-plane distance is now 2. for the default 10 x 10 grid
-    assert np.allclose(  # x-coordinate jumps every 10th gid
-        np.diff(np.array(net.pos_dict["L5_pyramidal"])[9::10, 0], axis=0), 2.0
+    # setup new main parameter values
+    new_inplane_distance = 2.1
+    new_layer_separation = 1138.0
+
+    # precompute the XY scaling and our newly expected values
+    xy_scaling = new_inplane_distance / default_inplane_distance
+    expected_origin = (
+        initial_origin[0] * xy_scaling,
+        initial_origin[1] * xy_scaling,
+        initial_origin[2],
     )
-    assert np.allclose(  # test first 10 y-coordinates
-        np.diff(np.array(net.pos_dict["L5_pyramidal"])[:9, 1], axis=0), 2.0
-    )
 
-    # check that layer separation has changed (L5 is zero) tp 1000.
-    assert np.isclose(net.pos_dict["L2_pyramidal"][0][2], 1000.0)
+    # Apply changes, and test that everything comes out as expected
+    # ----------------------------------------------------------------------------------
+    # check that in-plane distance changes, but layer separation does NOT change
+    net.reset_cell_positions(inplane_distance=new_inplane_distance)
+    assert np.isclose(net._inplane_distance, new_inplane_distance)
+    assert np.isclose(net._layer_separation, default_layer_separation)
 
-    with pytest.raises(ValueError, match="In-plane distance must be positive"):
-        net.set_cell_positions(inplane_distance=0.0)
-    with pytest.raises(ValueError, match="Layer separation must be positive"):
-        net.set_cell_positions(layer_separation=0.0)
+    # check that now, both have changed
+    net.reset_cell_positions(layer_separation=new_layer_separation)
+    assert np.isclose(net._inplane_distance, new_inplane_distance)
+    assert np.isclose(net._layer_separation, new_layer_separation)
 
-    # Check that the origin of the drive cells matches the new 'origin'
-    # when set_cell_positions is called after adding drives.
+    # check origin: X/Y scale by the same ratio as the cell grid, Z is unchanged
+    assert np.allclose(net.pos_dict["origin"], expected_origin)
+
+    # check that each cell type's X/Y positions scale by the same ratio as the
+    # origin, and that Z follows its own zdist_origin metadata, not a single
+    # shared value
+    for cell_type in net.cell_types.keys():
+        expected_cell_xy = initial_cell_xy[cell_type] * xy_scaling
+        actual_cell_xy = np.array(net.pos_dict[cell_type])[:, :2]
+        assert np.allclose(actual_cell_xy, expected_cell_xy)
+
+        expected_cell_z = (
+            net.cell_types[cell_type]["cell_metadata"]["zdist_origin"]
+            * new_layer_separation
+        )
+        actual_cell_z = np.array(net.pos_dict[cell_type])[:, 2]
+        assert np.allclose(actual_cell_z, expected_cell_z)
+
+    # Check that drive cells' X/Y positions are likewise updated: since drives
+    # always sit at the network origin, their new X/Y must match the new origin.
+    #
     # As the network dimensions increase, so does the center-of-mass of the
     # grid points, which is where all hnn drives should be located. The lamtha-
     # dependent weights and delays of the drives are calculated with respect to
     # this origin.
-    add_erp_drives_to_jones_model(net)
-    net.set_cell_positions(inplane_distance=20.0)
-    for drive_name, drive in net.external_drives.items():
-        assert len(net.pos_dict[drive_name]) == drive["n_drive_cells"]
-        # just test the 0th index, assume all others then fine too
-        for idx in range(3):  # x,y,z coords
-            assert net.pos_dict[drive_name][0][idx] == net.pos_dict["origin"][idx]
+    for drive_name in net.external_drives:
+        actual_drive_cells_xy = np.array(net.pos_dict[drive_name])[:, :2]
+        # every drive cell's X/Y must match the origin's X/Y exactly
+        for drive_cell_xy in actual_drive_cells_xy:
+            assert np.allclose(drive_cell_xy, expected_origin[:2])
+
+        if not mesh_shape == (1, 1):
+            # and confirm they actually moved from their pre-reset positions
+            assert not np.allclose(actual_drive_cells_xy, initial_drive_xy[drive_name])
+
+    # Input validation
+    # ------------------------------------------------------------------------------
+    with pytest.raises(ValueError, match="At least one of inplane_distance"):
+        net.reset_cell_positions()
+
+    with pytest.raises(ValueError, match="In-plane distance must be positive"):
+        net.reset_cell_positions(inplane_distance=0.0)
+    with pytest.raises(ValueError, match="Layer separation must be positive"):
+        net.reset_cell_positions(layer_separation=0.0)
+
+    with pytest.raises(TypeError, match="inplane_distance must be an instance of"):
+        net.reset_cell_positions(inplane_distance=f"{new_inplane_distance}")
+    with pytest.raises(TypeError, match="layer_separation must be an instance of"):
+        net.reset_cell_positions(layer_separation=[new_layer_separation])
+
+    # A NaN or zero current in-plane distance means the network is in a bad
+    # state and reset_cell_positions should refuse to guess a scaling factor
+    net_bad = neymotin_2020_model(mesh_shape=mesh_shape)
+    net_bad._inplane_distance = np.nan
+    with pytest.raises(ValueError, match="Cannot reset cell positions"):
+        net_bad.reset_cell_positions(inplane_distance=new_inplane_distance)
+    net_bad._inplane_distance = 0.0
+    with pytest.raises(ValueError, match="Cannot reset cell positions"):
+        net_bad.reset_cell_positions(inplane_distance=new_inplane_distance)
+
+    # Sequential relative resets must compose the same as a single direct
+    # reset from the original network, since reset_cell_positions always
+    # scales relative to the *current* net._inplane_distance
+    # ------------------------------------------------------------------------------
+    net_direct = neymotin_2020_model(add_drives_from_params=True, mesh_shape=mesh_shape)
+    net_direct.reset_cell_positions(inplane_distance=8.0, layer_separation=3000.0)
+
+    net_sequential = neymotin_2020_model(
+        add_drives_from_params=True, mesh_shape=mesh_shape
+    )
+    net_sequential.reset_cell_positions(inplane_distance=4.1, layer_separation=1531.0)
+    net_sequential.reset_cell_positions(inplane_distance=8.0, layer_separation=3000.0)
+
+    # Check cell types
+    for cell_type in net_direct.cell_types:
+        assert_allclose(
+            np.array(net_sequential.pos_dict[cell_type]),
+            np.array(net_direct.pos_dict[cell_type]),
+        )
+    # Check origin
+    assert_allclose(
+        np.array(net_sequential.pos_dict["origin"]),
+        np.array(net_direct.pos_dict["origin"]),
+    )
+    # Check drives
+    for drive_name in net_direct.external_drives:
+        assert_allclose(
+            np.array(net_sequential.pos_dict[drive_name]),
+            np.array(net_direct.pos_dict[drive_name]),
+        )
 
 
 def test_network_drives():
