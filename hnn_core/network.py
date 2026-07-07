@@ -778,6 +778,26 @@ class Network:
         self._inplane_distance = inplane_distance
         self._layer_separation = layer_separation
 
+    def reset_cell_positions(
+        self,
+        inplane_distance=None,
+        layer_separation=None,
+    ):
+        """Reset relative positions of cells arranged in a square grid.
+
+        Note that it is possible to change one of the parameters without changing the
+        other.x
+
+        Parameters
+        ----------
+        inplane_distance : float, optional
+            The in plane-distance (in um) between pyramidal cell somas in the
+            square grid. Note that this parameter does not affect the amplitude
+            of the dipole moment.
+        layer_separation : float, optional
+            The separation of pyramidal cell soma layers 2/3 and 5. Note that
+            this parameter does not affect the amplitude of the dipole moment.
+        """
         if inplane_distance is None:
             inplane_distance = self._inplane_distance
         _validate_type(inplane_distance, (float, int), "inplane_distance")
@@ -815,6 +835,37 @@ class Network:
                 )
             self._inplane_distance = inplane_distance
             self._layer_separation = layer_separation
+
+    def set_cell_positions(
+        self,
+        inplane_distance=None,
+        layer_separation=None,
+    ):
+        """Reset relative positions of cells arranged in a square grid (Deprecated)
+
+        This function is deprecated in favor of `Network.reset_cell_positions`. Note
+        that it is possible to change one of the parameters without changing the other.
+
+        Parameters
+        ----------
+        inplane_distance : float, optional
+            The in plane-distance (in um) between pyramidal cell somas in the
+            square grid. Note that this parameter does not affect the amplitude
+            of the dipole moment.
+        layer_separation : float, optional
+            The separation of pyramidal cell soma layers 2/3 and 5. Note that
+            this parameter does not affect the amplitude of the dipole moment.
+        """
+        warnings.warn(
+            "`Network.set_cell_positions` will be deprecated in favor of "
+            "`Network.reset_cell_positions` in future releases.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        self.reset_cell_positions(
+            inplane_distance=inplane_distance,
+            layer_separation=layer_separation,
+        )
 
     def copy(self):
         """Return a copy of the Network instance
