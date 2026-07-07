@@ -564,32 +564,63 @@ class Network:
             # strictly from the custom pos_dict:
             inlay_dist = []
             for cell_type in self.cell_types.keys():
-                # For this cell type, this does the following (best understood by
-                #     reading the code from the inside out):
+                # For this cell type, this does the following:
                 # 1. Grab all the unique, sorted x-coordinates of the cell type.
                 # 2. Grab all the distances between each unique, sorted x-coordinate of
                 #     the cell type.
                 # 3. Grab all the unique, sorted y-coordinates of the cell type.
                 # 4. Grab all the distances between each unique, sorted y-coordinate of
                 #    the cell type.
-                # 5. Concatenate the distances from steps 2 and 4 into a single array
-                #    of distances.
-                # 6. Final step: Take the mean of the resulting array. This gets you an
-                #     "average in-plane distance" for this cell type in the X and Y
-                #     (but not Z!) directions.
-                current_dist = np.mean(
-                    np.concatenate(
-                        (
-                            np.diff(
-                                np.unique(np.array(self.pos_dict[cell_type])[:, 0])
-                            ),
-                            np.diff(
-                                np.unique(np.array(self.pos_dict[cell_type])[:, 1])
-                            ),
+                # 5. Check that there is at least one distance in the x and y
+                #     directions. If not, warn the user, and override the in-plane
+                #     distance for that dimension to be 1.0, in order to prevent NaNs.
+                # 6. Concatenate the provided distances into a single array, and take
+                #     the mean. This gets you an "average in-plane distance" for this
+                #     cell type in the X and Y (but not Z!) directions.
+                x_diffs = np.diff(np.unique(np.array(self.pos_dict[cell_type])[:, 0]))
+                y_diffs = np.diff(np.unique(np.array(self.pos_dict[cell_type])[:, 1]))
+
+                for dim_diffs, dimension in [(x_diffs, "X"), (y_diffs, "Y")]:
+                    if len(dim_diffs) == 0:
+                        warnings.warn(
+                            "There appears to be no distance between the cells in the "
+                            f"{dimension} dimension for cell type '{cell_type}' in the "
+                            "provided 'pos_dict'. If this is not intentional, please "
+                            "check that your 'pos_dict' is well-formed. This can happen "
+                            "in the following scenarios: "
+                            "\n"
+                            "- If you are simulating a network with only a single cell of "
+                            "this cell type, such as if you are using "
+                            "`mesh_shape=(1, 1)`. "
+                            "\n"
+                            f"- If the positions of '{cell_type}' in your 'pos_dict' "
+                            f"are all the same in the {dimension} dimension. "
+                            "\n"
+                            "In order to prevent `Network._inplane_distance` from being "
+                            f"NaN, the in-plane distance in the {dimension} dimension for "
+                            "this cell type will be overridden to be 1.0."
                         )
-                    )
-                )
+                        # Note for developers: In the warned cases above, it should be
+                        # safe to override the problematic dimension's in-plane distance
+                        # to 1.0. This allows the problematic dimension to still use its
+                        # full lamtha value when it is used in
+                        #
+                        # Cell.parconnect_from_src ->
+                        # cell.py::_get_gaussian_connection ->
+                        # cell.py::_calculate_gaussian
+                        #
+                        # instead of hitting a divide-by-NaN error. Additionally, if the
+                        # OTHER dimension has valid in-plane distances (such as cells in
+                        # a line), then those will still be taken into account when
+                        # ultimately calculating the `self._inplane_distance` below.
+                        if dimension == "X":
+                            x_diffs = np.array([1.0])
+                        elif dimension == "Y":
+                            y_diffs = np.array([1.0])
+
+                current_dist = np.mean(np.concatenate((x_diffs, y_diffs)))
                 inlay_dist.append(current_dist)
+
             self._inplane_distance = np.min(np.array(inlay_dist))
 
             # Since we're in the initializer, we must also calculate our layer separation

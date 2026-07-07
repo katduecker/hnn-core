@@ -5,6 +5,7 @@ from copy import deepcopy
 import io
 import os.path as op
 import tempfile
+import warnings
 
 import numpy as np
 from numpy.testing import assert_allclose
@@ -165,7 +166,18 @@ def test_custom_network_coords(mesh_shape):
         "L5_pyramidal": custom_layer_dict["L5_bottom"],
         "origin": custom_layer_dict["origin"],
     }
-    custom_net = Network(params, pos_dict=custom_pos_dict, cell_types=custom_cell_types)
+    if mesh_shape == (1, 1):
+        with pytest.warns(UserWarning, match="no distance between the cells in the X"):
+            with pytest.warns(
+                UserWarning, match="no distance between the cells in the Y"
+            ):
+                custom_net = Network(
+                    params, pos_dict=custom_pos_dict, cell_types=custom_cell_types
+                )
+    else:
+        custom_net = Network(
+            params, pos_dict=custom_pos_dict, cell_types=custom_cell_types
+        )
     assert "L2_pyramidal" in custom_net.cell_types
     assert "L5_pyramidal" in custom_net.cell_types
     total_mesh_size = mesh_shape[0] * mesh_shape[1]
@@ -264,6 +276,74 @@ def test_custom_network_coords(mesh_shape):
     assert dipole_custom is not None
     assert len(dipole_custom[0].times) > 0
     assert np.all(np.isfinite(dipole_custom[0].data["agg"]))
+
+
+def test_custom_network_coords_degenerate_dimension():
+    """Test warning/fallback when pos_dict has no spread in X and/or Y"""
+    params = read_params(params_fname)
+
+    custom_cell_types = {
+        "L2_pyramidal": {
+            "cell_object": pyramidal(cell_name="L2_pyramidal"),
+            "cell_metadata": {
+                "morpho_type": "pyramidal",
+                "electro_type": "excitatory",
+                "layer": "2",
+                "zdist_origin": 1,
+                "measure_dipole": True,
+                "reference": "https://doi.org/10.7554/eLife.51214",
+            },
+        },
+    }
+
+    # Single cell: no spread in either X or Y -> both dimensions warn, and
+    # in-plane distance falls back to the mean of the two overridden 1.0 values
+    single_cell_pos_dict = {
+        "L2_pyramidal": [(0.0, 0.0, 0.0)],
+        "origin": (0.0, 0.0, 0.0),
+    }
+    with pytest.warns(UserWarning, match="no distance between the cells in the X"):
+        with pytest.warns(UserWarning, match="no distance between the cells in the Y"):
+            net = Network(
+                params,
+                pos_dict=single_cell_pos_dict,
+                cell_types=custom_cell_types,
+            )
+    assert np.isclose(net._inplane_distance, 1.0)
+
+    # Cells in a line along Y only: X has no spread, Y does -> only X warns,
+    # and the resulting in-plane distance takes the Y spacing into account
+    line_pos_dict = {
+        "L2_pyramidal": [(0.0, 0.0, 0.0), (0.0, 3.0, 0.0), (0.0, 6.0, 0.0)],
+        "origin": (0.0, 0.0, 0.0),
+    }
+    with pytest.warns(UserWarning, match="no distance between the cells in the X"):
+        net_line = Network(
+            params,
+            pos_dict=line_pos_dict,
+            cell_types=custom_cell_types,
+        )
+    # mean of overridden X diff (1.0) and actual Y diffs (3.0, 3.0)
+    assert np.isclose(net_line._inplane_distance, np.mean([1.0, 3.0, 3.0]))
+
+    # Well-formed grid: no warnings should be raised
+    grid_pos_dict = {
+        "L2_pyramidal": [
+            (0.0, 0.0, 0.0),
+            (2.0, 0.0, 0.0),
+            (0.0, 2.0, 0.0),
+            (2.0, 2.0, 0.0),
+        ],
+        "origin": (0.0, 0.0, 0.0),
+    }
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        net_grid = Network(
+            params,
+            pos_dict=grid_pos_dict,
+            cell_types=custom_cell_types,
+        )
+    assert np.isclose(net_grid._inplane_distance, 2.0)
 
 
 def test_custom_network_coords_validation():
