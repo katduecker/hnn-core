@@ -668,9 +668,9 @@ class Network:
             self._inplane_distance = 1.0  # XXX hard-coded default
             self._layer_separation = 1307.4  # XXX hard-coded default
 
-            self.set_cell_positions(
-                inplane_distance=self._inplane_distance,
-                layer_separation=self._layer_separation,
+            self._create_default_cell_positions(
+                self._inplane_distance,
+                self._layer_separation,
             )
 
             # populates self.gid_ranges for the 1st time: order matters for
@@ -751,6 +751,33 @@ class Network:
         If a `pos_dict` is already provided (i.e. manually specifying cell positions when creating the Network), then this function will shift the existing positions. If there is no pre-defined `pos_dict`, then a `pos_dict` is created where cells are positioned on a grid.
 
         """
+
+        # If cell positions are set for the first time -> default model with default cell names
+        # Get layer positions using layer dict
+        layer_dict = _create_cell_coords(
+            n_pyr_x=self._N_pyr_x,
+            n_pyr_y=self._N_pyr_y,
+            z_coord=layer_separation,
+            inplane_distance=inplane_distance,
+        )
+
+        # Map layers to cell types, for default mapping
+        self.pos_dict = {
+            "L5_pyramidal": layer_dict["L5_bottom"],
+            "L2_pyramidal": layer_dict["L2_bottom"],
+            "L5_basket": layer_dict["L5_mid"],
+            "L2_basket": layer_dict["L2_mid"],
+            "origin": layer_dict["origin"],
+        }
+
+        # update drives to be positioned at network origin
+        for drive_name, drive in self.external_drives.items():
+            pos = [self.pos_dict["origin"]] * drive["n_drive_cells"]
+            self.pos_dict[drive_name] = pos
+
+        self._inplane_distance = inplane_distance
+        self._layer_separation = layer_separation
+
         if inplane_distance is None:
             inplane_distance = self._inplane_distance
         _validate_type(inplane_distance, (float, int), "inplane_distance")
@@ -786,34 +813,6 @@ class Network:
                 self.pos_dict[drive_name] = [self.pos_dict["origin"]] * len(
                     self.pos_dict[drive_name]
                 )
-            self._inplane_distance = inplane_distance
-            self._layer_separation = layer_separation
-
-        # If cell positions are set for the first time -> default model with default cell names
-
-        elif not np.isnan(self._inplane_distance):  # ensure mesh_shape>(1,1)
-            # Get layer positions using layer dict
-            layer_dict = _create_cell_coords(
-                n_pyr_x=self._N_pyr_x,
-                n_pyr_y=self._N_pyr_y,
-                z_coord=layer_separation,
-                inplane_distance=inplane_distance,
-            )
-
-            # Map layers to cell types, for default mapping
-            self.pos_dict = {
-                "L5_pyramidal": layer_dict["L5_bottom"],
-                "L2_pyramidal": layer_dict["L2_bottom"],
-                "L5_basket": layer_dict["L5_mid"],
-                "L2_basket": layer_dict["L2_mid"],
-                "origin": layer_dict["origin"],
-            }
-
-            # update drives to be positioned at network origin
-            for drive_name, drive in self.external_drives.items():
-                pos = [self.pos_dict["origin"]] * drive["n_drive_cells"]
-                self.pos_dict[drive_name] = pos
-
             self._inplane_distance = inplane_distance
             self._layer_separation = layer_separation
 
