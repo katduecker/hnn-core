@@ -820,27 +820,56 @@ class Network:
                 f"Layer separation must be positive, got: {layer_separation}"
             )
 
-        # if there is a pos_dict, adjust cell positions (if mesh_shape > (1,1))
-        if (len(self.pos_dict) > 0) and not np.isnan(self._inplane_distance):
-            scale = inplane_distance / self._inplane_distance
-            for cell_type in self.cell_types:
-                zdist = (
-                    self.cell_types[cell_type]["cell_metadata"]["zdist_origin"]
-                    * layer_separation
+        # pos_dict shifting
+        # ------------------------------------------------------------------------------
+        # There should always be an existing pos_dict by the point in time when this
+        # function is called, since it can only be called after the Network is
+        # initialized.
+        xy_scaling = inplane_distance / self._inplane_distance
+        for cell_type in self.cell_types:
+            new_zdist = (
+                self.cell_types[cell_type]["cell_metadata"]["zdist_origin"]
+                * layer_separation
+            )
+            # Update the positions of the cells in pos_dict:
+            # - X and Y coordinates are scaled by the ratio of the new in-plane distance
+            #     to the old one, so that their final location is consistent with the
+            #     new in-plane distance.
+            # - Z coordinates: Because `zdist_origin` is already normalized to [0, 1],
+            #     the Z-coordinate is simply multiplied by the new layer separation
+            #     distance.
+            self.pos_dict[cell_type] = [
+                (
+                    pos[0] * xy_scaling,
+                    pos[1] * xy_scaling,
+                    new_zdist,
                 )
-                self.pos_dict[cell_type] = [
-                    (pos[0] * scale, pos[1] * scale, zdist)
-                    for pos in self.pos_dict[cell_type]
-                ]
-            # scale origin and update drive positions
-            origin = self.pos_dict["origin"]
-            self.pos_dict["origin"] = (origin[0] * scale, origin[1] * scale, origin[2])
-            for drive_name in self.external_drives:
-                self.pos_dict[drive_name] = [self.pos_dict["origin"]] * len(
-                    self.pos_dict[drive_name]
-                )
-            self._inplane_distance = inplane_distance
-            self._layer_separation = layer_separation
+                for pos in self.pos_dict[cell_type]
+            ]
+
+        # Update the position of the origin in pos_dict:
+        # - X and Y coordinates are scaled similarly to the celltypes above, via the
+        #     ratio of the new in-plane distance to the old one.
+        # - The Z coordinate is unchanged since it already defines the '0' value for
+        #     `zdist_origin` metadata of cell types.
+        origin = self.pos_dict["origin"]
+        self.pos_dict["origin"] = (
+            origin[0] * xy_scaling,
+            origin[1] * xy_scaling,
+            origin[2],
+        )
+
+        # Update the position of the drives in pos_dict:
+        # - Drives are always positioned at the origin of the network (see
+        # https://github.com/jonescompneurolab/hnn-core/blob/5ca983a3dd53b6e749c377b24bcba64773debbd3/hnn_core/network.py#L1396
+        # so we simply reset their positions to the new origin of the network.
+        for drive_name in self.external_drives:
+            self.pos_dict[drive_name] = [self.pos_dict["origin"]] * len(
+                self.pos_dict[drive_name]
+            )
+
+        self._inplane_distance = inplane_distance
+        self._layer_separation = layer_separation
 
     def set_cell_positions(
         self,
