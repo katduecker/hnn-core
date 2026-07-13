@@ -503,7 +503,7 @@ class NetworkBuilder(object):
                         apply_bias = gid == target_gids
 
                     if apply_bias:
-                        cell.create_tonic_bias(**bias_params)
+                        cell._create_tonic_bias(**bias_params)
 
                 cell.record(record_vsec, record_isec, record_ca)
 
