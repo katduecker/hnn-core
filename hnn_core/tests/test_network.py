@@ -1115,12 +1115,16 @@ def test_tonic_biases():
         lamtha=3.0,
     )
 
-    tonic_bias_1 = {"L2_pyramidal": 1.0, "name_nonexistent": 1.0}
-
+    tonic_bias_bad = {"name_nonexistent": 1.0}
     with pytest.raises(ValueError, match=r"cell_type must be one of .*$"):
-        net.add_tonic_bias(amplitude=tonic_bias_1, t0=0.0, tstop=4.0)
+        net.add_tonic_bias(amplitude=tonic_bias_bad, t0=0.0, tstop=4.0)
 
-    # The previous test only adds L2_pyramidal and ignores name_nonexistent
+    # AES: the next test should not have relied on the prior error to PARTIALLY
+    # succeed. A ValueError is going to stop the user from running their code
+    # entirely. This has been changed so that the valid bias addition is kept separate
+    # from the invalid addition.
+    tonic_bias_1 = {"L2_pyramidal": 1.0}
+    net.add_tonic_bias(amplitude=tonic_bias_1, t0=0.0, tstop=4.0)
     # Testing the fist bias was added
     assert net.external_biases["tonic"]["L2_pyramidal"] is not None
     net.external_biases = dict()
@@ -1230,8 +1234,8 @@ def test_tonic_biases():
     with pytest.raises(
         ValueError,
         match=(
-            r"section must be one of .*"
-            " Got apical_4."
+            "section 'apical_4' does not exist. "
+            r"Section must be one of .*"
         ),
     ):
         net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, section="apical_4")

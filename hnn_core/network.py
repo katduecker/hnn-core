@@ -1602,92 +1602,222 @@ class Network:
                 # 'events': nested list (n_trials x n_drive_cells x n_events)
                 self.external_drives[drive["name"]]["events"].append(event_times)
 
-    def add_tonic_bias(
+    def _validate_tonic_bias_args(
         self,
-        *,
-        cell_type=None,
-        section="soma",
-        bias_name="tonic",
         amplitude,
+        bias_name="tonic",
+        gid=None,
+        section="soma",
         t0=0,
         tstop=None,
-        gid=None,
+        cell_type=None,
     ):
-        """Attaches parameters of tonic bias input for given cell types
+        """Validate the arguments for Network.add_tonic_bias.
 
-        Parameters
-        ----------
-        cell_types : str | None
-            The name of the cell type to add a tonic input. When supplied,
-            a float value must be provided with the `amplitude` keyword.
-            Valid inputs are those listed in  `net.cell_types`.
-        section : str
-            name of cell section the bias should be applied to.
-            See net.cell_types[cell_type].sections.keys()
-        bias_name : str
-            The name of the bias.
-        amplitude: dict | float
-            A dictionary of cell type keys (str) to amplitude values (float).
-            Valid inputs for cell types are those listed in `net.cell_types`.
-            If `cell_types` is not None, `amplitude` should be
-            a float indicating the amplitude of the tonic input
-            for the specified cell type.
-            Alternatively, `amplitude` may be a single float combined with the
-            `gid` keyword. In that case the bias of this amplitude is applied
-            to the specified gids and the cell type of each gid is inferred
-            automatically (see `gid`).
-        t0 : float
-            The start time of tonic input (in ms). Default: 0 (beginning of
-            simulation). This value will be applied to all the  tonic biases if
-            multiple are specified with the `amplitude` keyword.
-        tstop : float
-            The end time of tonic input (in ms). Default: end of simulation.
-            This value will be applied to all the  tonic biases if
-            multiple are specified with the `amplitude` keyword.
-        gid : int | list | dict | None
-            Optionally specify gid(s) to which the tonic bias should be applied.
-            If None (default), the bias is applied to all cells of the specified
-            cell type(s). May be given as:
-
-            - a single gid (``int``) or a list of gids (``list`` of ``int``).
-              The gids are routed to whichever biased cell type they belong to.
-              When biases are defined for multiple cell types and the list does
-              not cover one of them, that cell type receives the bias on all of
-              its cells (with a warning).
-            - a dictionary mapping cell type to gid(s), e.g.
-              ``{'L5_pyramidal': [gid1, gid2]}`` or
-              ``{'L2_pyramidal': gid1, 'L5_pyramidal': gid2}``. Each gid must
-              belong to the cell type it is mapped to.
-
+        This has the same function signature as Network.add_tonic_bias.
         """
-
-        # old functionality single cell type - amplitude. Normalize the
-        # deprecated `cell_type`/`amplitude` pair into the amplitude dictionary
-        # so a single code path handles both APIs.
+        # Validate the argument logic, detect what cell_types were passed (if any), and
+        # detect whether 'gids' is used.
+        # ------------------------------------------------------------------------------
+        # Deprecated functionality: single "cell_type" and single "amplitude".
         if cell_type is not None:
             warnings.warn(
-                "cell_type argument will be deprecated and "
-                "removed in future releases. Use amplitude as a "
-                "cell_type:str,amplitude:float dictionary."
-                "Read the function docustring for more information",
+                "cell_type argument will be deprecated and removed in future releases. "
+                "Instead, see the documentation for arguments 'amplitude' and 'gid' "
+                "as a replacement.",
                 DeprecationWarning,
                 stacklevel=1,
             )
             _validate_type(amplitude, (float, int), "amplitude")
-            amplitude = {cell_type: float(amplitude)}
+            cell_types_to_check = [cell_type]
             amplitude_from_gids = False
+
         elif isinstance(amplitude, (float, int)):
-            # A single amplitude applied to a set of gids. The cell
-            # type of each gid is inferred from the network so the float is
-            # turned into the {cell_type: amplitude} dictionary used internally.
+            # A single amplitude applied to a set of gids. The cell type of each gid is
+            # inferred from the network.
             if gid is None:
                 raise ValueError(
                     "When `amplitude` is a float, `gid` must be specified so "
                     "the cell type(s) of the targeted cells can be inferred. "
                     "To apply a bias to all cells of a type, pass `amplitude` "
-                    "as a {cell_type: amplitude} dictionary instead."
+                    "as a dictionary similar to `{<cell_type>: <amplitude>}` instead."
                 )
-            _validate_type(gid, (int, list), "gid")
+            _validate_type(gid, (int, list, dict), "gid")
+
+            if isinstance(gid, int) or isinstance(gid, float):
+                if gid > (self._n_gids - 1):
+                    raise ValueError(
+                        f"gid {gid} is invalid; must be less than {self._n_gids}"
+                    )
+                cell_types_to_check = [self.gid_to_type(gid)]
+            elif isinstance(gid, list):
+                if len(gid) == 0:
+                    warnings.warn(
+                        "The provided 'gid' argument is empty, therefore no "
+                        "biases have been defined and no action taken.",
+                        UserWarning,
+                        stacklevel=1,
+                    )
+                    return
+
+                if max(gid) > (self._n_gids - 1):
+                    raise ValueError(
+                        f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
+                    )
+                cell_types_to_check = list(
+                    set([self.gid_to_type(_gid) for _gid in gid])
+                )
+            elif isinstance(gid, dict):
+                cell_types_to_check = gid.keys()
+
+            amplitude_from_gids = True
+        else:
+            # TODO check if necessary
+            if len(amplitude) == 0:
+                warnings.warn(
+                    "The provided 'amplitude' argument is empty, therefore no "
+                    "biases have been defined and no action taken.",
+                    UserWarning,
+                    stacklevel=1,
+                )
+                return
+
+            _validate_type(amplitude, dict, "amplitude")
+            cell_types_to_check = list(amplitude.keys())
+            amplitude_from_gids = False
+
+        # Validate the VALUES of the arguments themselves
+        # ------------------------------------------------------------------------------
+        for input_cell_type in cell_types_to_check:
+            # Validate that the cell type is known to the network
+            if input_cell_type not in self.cell_types:
+                raise ValueError(
+                    f"cell_type must be one of "
+                    f"{list(self.cell_types.keys())}. "
+                    f"Got '{input_cell_type}'."
+                )
+            # Validate that the bias name is not already defined for this cell type
+            if bias_name in self.external_biases.keys():
+                if input_cell_type in self.external_biases[bias_name]:
+                    raise ValueError(
+                        f"Bias named {bias_name} already defined for {input_cell_type}"
+                    )
+            # Validate that the input section is valid for this cell type
+            valid_sections = list(
+                self.cell_types[input_cell_type]["cell_object"].sections.keys()
+            )
+            if section not in valid_sections:
+                raise ValueError(
+                    f"For cell_type '{input_cell_type}', section '{section}' does not "
+                    f"exist. Section must be one of {valid_sections}."
+                )
+
+        if not amplitude_from_gids:
+            # Let's deal with the easy case first, when we are NOT dealing with the
+            # `gid` argument.
+            pass
+        elif amplitude_from_gids:
+            _amplitude_value = float(amplitude)
+            _gids = [gid] if isinstance(gid, int) else list(gid)
+            for _gid in _gids:
+                _validate_type(_gid, int, "gid")
+                _gid_type = self.gid_to_type(_gid)
+                if _gid_type is None:
+                    raise ValueError(
+                        f"Invalid gid {_gid}; not found in net.gid_ranges."
+                    )
+
+        return amplitude_from_gids
+
+    def add_tonic_bias(
+        self,
+        amplitude,
+        bias_name="tonic",
+        gid=None,
+        section="soma",
+        t0=0,
+        tstop=None,
+        cell_type=None,
+    ):
+        """Attaches parameters of tonic bias input for given cell types
+
+        KDTODOs:
+        - Discuss this former part of the `gid` argument:
+          - "When biases are defined for multiple cell types and the list does
+            not cover one of them, that cell type receives the bias on all of
+            its cells (with a warning)."
+        - Discuss this behavior documented in _add_cell_type_bias:
+            - "`None` means "all cells of this type", so there is nothing to validate."
+
+        Parameters
+        ----------
+        amplitude: dict | float
+            Required parameter.
+            - If given as a dictionary, keys should be cell type names (as in
+              ``net.cell_types``) and values should be the amplitude of the tonic input
+              for that cell type as a float.
+            - If given as a float, you must also provide the `gid` argument. In this
+              case, the amplitude is applied to all cells indicated by the `gid`
+              argument.
+        bias_name : str, default="tonic"
+            The name of the bias.
+        gid : int | list | dict, optional
+            Optionally specify gid(s) of cells to which the tonic bias should be
+            applied. This must be specified if `amplitude` is a float. May be given as:
+            - a single gid (``int``) or a list of gids (``list`` of ``int``).
+              The tonic bias is connected to the provided gids, regardless of which cell
+              type they belong to.
+            - a dictionary mapping cell type to gid(s). If given as a dictionary, keys
+              should be cell type names (as in ``net.cell_types``). Values should be one
+              of a single gid (``int``), a list of gids (``list`` of ``int``), or the
+              string ``all``. Each gid must belong to the cell type it is mapped to or
+              else an error will be raised. Examples of valid dictionary inputs are:
+              ``{'L5_pyramidal': [<gid1>, <gid2>]}``
+              ``{'L2_pyramidal': <gid1>, 'L5_pyramidal': <gid2>}``
+              ``{'L2_pyramidal': [<gid1>, <gid2>], 'L5_pyramidal': <gid3>, 'L5_basket': 'all'}``
+        section : str, default="soma"
+            name of cell section the bias should be applied to.
+            See ``net.cell_types[cell_type].sections.keys()``
+        t0 : float, default=0
+            The start time of tonic input (in ms), defaulting to the beginning of
+            simulation. This value will be applied to all the tonic biases created by
+            this function call, regardless of if multiple cell types are specified using
+            either `amplitude` or `gid`.
+        tstop : float, optional
+            The end time of tonic input (in ms), defaulting to the end of the
+            simulation. This value will be applied to all the tonic biases created by
+            this function call, regardless of if multiple cell types are specified using
+            either `amplitude` or `gid`.
+        cell_type : str, optional
+            DEPRECATED. The name of the cell type to add a tonic input. Valid inputs are
+            those listed in `net.cell_types`. When supplied, the `amplitude` keyword
+            must be provided as a float. This argument will be removed in future
+            releases.
+        """
+        # There is a large amount of input validation, so this is separated into its own
+        # function.
+        amplitude_from_gids = self._validate_tonic_bias_args(
+            amplitude=amplitude,
+            bias_name=bias_name,
+            gid=gid,
+            section=section,
+            t0=t0,
+            tstop=tstop,
+            cell_type=cell_type,
+        )
+
+        # Normalize the amplitudes
+        # ------------------------------------------------------------------------------
+        # DEPRECATED: Normalize the deprecated `cell_type`/`amplitude` pair into the
+        # amplitude dictionary so a single code path handles both APIs.
+
+        if not amplitude_from_gids:
+            # Let's deal with the easy case first, when we are NOT dealing with the
+            # `gid` argument.
+            if cell_type is not None:
+                amplitude = {cell_type: float(amplitude)}
+
+        elif amplitude_from_gids:
             _amplitude_value = float(amplitude)
             _gids = [gid] if isinstance(gid, int) else list(gid)
             amplitude = dict()
@@ -1699,18 +1829,6 @@ class Network:
                         f"Invalid gid {_gid}; not found in net.gid_ranges."
                     )
                 amplitude.setdefault(_gid_type, _amplitude_value)
-            amplitude_from_gids = True
-        else:
-            _validate_type(amplitude, dict, "amplitude")
-            amplitude_from_gids = False
-
-        if len(amplitude) == 0:
-            warnings.warn(
-                "No bias have been defined, no action taken",
-                UserWarning,
-                stacklevel=1,
-            )
-            return
 
         # Resolve the `gid` argument into a per-cell-type mapping so that gids
         # are validated against, and routed to, the correct cell type. This
@@ -1729,6 +1847,8 @@ class Network:
             and (len(amplitude) > 1 or amplitude_from_gids)
         )
 
+        # Finally, actually add the validated biases
+        # ------------------------------------------------------------------------------
         for _cell_type, _amplitude in amplitude.items():
             _add_cell_type_bias(
                 network=self,
@@ -2651,14 +2771,6 @@ def _add_cell_type_bias(
         bias is applied to all cells of `cell_type`. Each supplied gid must
         belong to `cell_type`.
     """
-    # Validate cell_type value
-    if cell_type not in network.cell_types:
-        raise ValueError(
-            f"cell_type must be one of "
-            f"{list(network.cell_types.keys())}. "
-            f"Got {cell_type}"
-        )
-
     # Validate that the requested gids belong to this cell type. `None` means
     # "all cells of this type", so there is nothing to validate. Single gids
     # are normalized to a list so the stored representation is consistent.
@@ -2675,12 +2787,6 @@ def _add_cell_type_bias(
                 )
         gid = gids
 
-    if bias_name not in network.external_biases:
-        network.external_biases[bias_name] = dict()
-
-    if cell_type in network.external_biases[bias_name]:
-        raise ValueError(f"Bias named {bias_name} already defined for {cell_type}")
-
     cell_type_bias = {
         "amplitude": amplitude,
         "t0": t_0,
@@ -2689,13 +2795,8 @@ def _add_cell_type_bias(
         "gid": gid,
     }
 
-    sections = list(network.cell_types[cell_type]["cell_object"].sections.keys())
-
-    # error when section is defined that doesn't exist.
-    if section not in sections:
-        raise ValueError(f"section must be one of {sections}. Got {section}.")
-    else:
-        cell_type_bias["section"] = section
+    if bias_name not in network.external_biases:
+        network.external_biases[bias_name] = dict()
 
     network.external_biases[bias_name][cell_type] = cell_type_bias
 
