@@ -1391,7 +1391,7 @@ def test_tonic_bias_gid_routing():
     net = neymotin_2020_model()
     with pytest.raises(
         ValueError,
-        match="gid dictionary key 'L2_basket' is not among the cell types",
+        match="When `amplitude` is a dictionary and `gid` is a dictionary",
     ):
         net.add_tonic_bias(amplitude=amplitude, gid={"L2_basket": basket_gid})
 
