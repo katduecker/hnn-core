@@ -1116,7 +1116,7 @@ def test_tonic_biases():
     )
 
     tonic_bias_bad = {"name_nonexistent": 1.0}
-    with pytest.raises(ValueError, match=r"cell_type must be one of .*$"):
+    with pytest.raises(ValueError, match=r"Provided cell type must be one of .*$"):
         net.add_tonic_bias(amplitude=tonic_bias_bad, t0=0.0, tstop=4.0)
 
     # AES: the next test should not have relied on the prior error to PARTIALLY
@@ -1152,7 +1152,7 @@ def test_tonic_biases():
     net.external_biases = dict()
 
     # test adding single cell_type - amplitude (old API)
-    with pytest.raises(ValueError, match=r"cell_type must be one of .*$"):
+    with pytest.raises(ValueError, match=r"Provided cell type must be one of .*$"):
         with pytest.warns(
             DeprecationWarning, match=r"cell_type argument will be deprecated"
         ):
@@ -1317,14 +1317,12 @@ def test_tonic_biases():
     # Assert value error when GID is not in cell type range. The gid is now
     # validated at bias definition time rather than at simulation time.
     net = neymotin_2020_model()
-    cell_type = "L2_pyramidal"
-    target_gids = 20
+    target_gids = {"L2_pyramidal": 20}
     with pytest.raises(
         ValueError,
         match="GID 20 was given a 'L2_pyramidal' bias but is of type 'L2_basket'. When defining cell types alongside GIDs, ensure that GIDs are within the correct range.",
     ):
         net.add_tonic_bias(
-            cell_type=cell_type,
             gid=target_gids,
             bias_name="tonic_soma",
             amplitude=3,
