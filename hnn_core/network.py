@@ -1943,7 +1943,7 @@ class Network:
         section: str,
         bias_name: str,
         t_0: float,
-        t_stop: float | None,
+        t_stop,
         gid: list,
     ):
         """Add a tonic bias to a specific cell type in the network.
