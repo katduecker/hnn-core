@@ -1862,32 +1862,36 @@ class Network:
         #         _gid_type = self.gid_to_type(_gid)
         #         amplitude.setdefault(_gid_type, _amplitude_value)
         if cell_type is not None:
-            amplitude = {cell_type: float(amplitude)}
+            normalized_amplitude = {cell_type: float(amplitude)}
             infer_celltypes_from_gids = False  # REMOVE
         elif isinstance(amplitude, (int, float)):
             _amplitude_value = float(amplitude)
-            amplitude = dict()
+            normalized_amplitude = dict()
             if isinstance(gid, (int, float)):
                 _gid_type = self.gid_to_type(gid)
-                amplitude.setdefault(_gid_type, _amplitude_value)
+                normalized_amplitude.setdefault(_gid_type, _amplitude_value)
             elif isinstance(gid, list):
                 for _gid in gid:
                     _gid_type = self.gid_to_type(_gid)
-                    amplitude.setdefault(_gid_type, _amplitude_value)
+                    normalized_amplitude.setdefault(_gid_type, _amplitude_value)
             elif isinstance(gid, dict):
                 for _gid_type in gid.keys():
-                    amplitude.setdefault(_gid_type, _amplitude_value)
+                    normalized_amplitude.setdefault(_gid_type, _amplitude_value)
 
             infer_celltypes_from_gids = True  # REMOVE
         elif isinstance(amplitude, dict):  # REMOVE
             infer_celltypes_from_gids = False  # REMOVE
+            normalized_amplitude = amplitude
 
         # ------------------------------------------------------------------------------
         # Resolve the `gid` argument into a per-cell-type mapping so that gids
         # are validated against, and routed to, the correct cell type. This
         # converts list/int inputs to the dictionary format used internally.
-        gid_by_type, fallback_types = _resolve_bias_gids(
-            self, list(amplitude.keys()), gid
+        #
+        # At this point, `normalized_amplitude` is guaranteed to be a dictionary mapping cell type
+        # to amplitude.
+        normalized_gid, fallback_types = _resolve_bias_gids(
+            self, list(normalized_amplitude.keys()), gid
         )
 
         # Inform the user how gids were routed whenever the routing was not made
@@ -1897,12 +1901,12 @@ class Network:
         warn_routing = (
             gid is not None
             and not isinstance(gid, dict)
-            and (len(amplitude) > 1 or infer_celltypes_from_gids)
+            and (len(normalized_amplitude) > 1 or infer_celltypes_from_gids)
         )
 
         # Finally, actually add the validated biases
         # ------------------------------------------------------------------------------
-        for _cell_type, _amplitude in amplitude.items():
+        for _cell_type, _amplitude in normalized_amplitude.items():
             _add_cell_type_bias(
                 network=self,
                 cell_type=_cell_type,
@@ -1911,7 +1915,7 @@ class Network:
                 amplitude=_amplitude,
                 t_0=t0,
                 t_stop=tstop,
-                gid=gid_by_type[_cell_type],
+                gid=normalized_gid[_cell_type],
             )
 
             if warn_routing:
@@ -1925,7 +1929,7 @@ class Network:
                 else:
                     warnings.warn(
                         f"Tonic bias of amplitude {_amplitude} applied to gids "
-                        f"{gid_by_type[_cell_type]} for {_cell_type}.",
+                        f"{normalized_gid[_cell_type]} for {_cell_type}.",
                         UserWarning,
                         stacklevel=1,
                     )
@@ -2728,24 +2732,26 @@ def _resolve_bias_gids(network, cell_types, gid):
 
     Returns
     -------
-    gid_by_type : dict
+    normalized_gid : dict
         Maps each cell type in `cell_types` to ``None`` (all cells) or a list
         of gids belonging to that cell type.
     fallback_types : set of str
         Cell types that were assigned all of their cells because a flat list of
         gids did not include any gid of that type. Used to warn the user.
     """
-    gid_by_type = {cell_type: None for cell_type in cell_types}
+    normalized_gid = {cell_type: None for cell_type in cell_types}
     fallback_types = set()
 
     if gid is None:
-        return gid_by_type, fallback_types
+        return normalized_gid, fallback_types
 
     # Explicit {cell_type: gid(s)} mapping -- normalize each value to a list.
     if isinstance(gid, dict):
         for _cell_type, _gids in gid.items():
-            gid_by_type[_cell_type] = [_gids] if isinstance(_gids, int) else list(_gids)
-        return gid_by_type, fallback_types
+            normalized_gid[_cell_type] = (
+                [_gids] if isinstance(_gids, int) else list(_gids)
+            )
+        return normalized_gid, fallback_types
 
     # Flat int or list of gids.
     _validate_type(gid, (int, list), "gid")
@@ -2754,8 +2760,8 @@ def _resolve_bias_gids(network, cell_types, gid):
     # With a single biased cell type the gids are unambiguous: assign them all
     # and let `_add_cell_type_bias` validate that they belong to that type.
     if len(cell_types) == 1:
-        gid_by_type[cell_types[0]] = gids
-        return gid_by_type, fallback_types
+        normalized_gid[cell_types[0]] = gids
+        return normalized_gid, fallback_types
 
     # Multiple biased cell types -- group each gid by the cell type it belongs
     # to so the right amplitude is applied to the right cells.
@@ -2774,12 +2780,12 @@ def _resolve_bias_gids(network, cell_types, gid):
 
     for cell_type in cell_types:
         if grouped[cell_type]:
-            gid_by_type[cell_type] = grouped[cell_type]
+            normalized_gid[cell_type] = grouped[cell_type]
         else:
             # No gid in the list belongs to this type -> apply to all its cells.
             fallback_types.add(cell_type)
 
-    return gid_by_type, fallback_types
+    return normalized_gid, fallback_types
 
 
 def _add_cell_type_bias(
