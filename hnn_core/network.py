@@ -1919,11 +1919,11 @@ class Network:
         self,
         amplitude: float,
         cell_type: str,
-        section="soma",
-        bias_name="tonic",
-        t_0=0,
-        t_stop=None,
-        gid=None,
+        section: str,
+        bias_name: str,
+        t_0: float,
+        t_stop: float | None,
+        gid: list,
     ):
         """Add a tonic bias to a specific cell type in the network.
 
@@ -1934,40 +1934,19 @@ class Network:
             `cell_type`.
         cell_type : str
             The cell type to which the bias is applied.
-        section : str, default 'soma'
+        section : str
             The section of the cell where the bias is applied (e.g., 'soma',
             'apical_tuft').
-        bias_name : str, default 'tonic'
-            A name identifier for the bias configuration, allowing multiple biases
-            to be applied.
-        t_0 : float, default 0
+        bias_name : str
+            A name identifier for the bias configuration
+        t_0 : float
             The start time of the tonic input in milliseconds.
-        t_stop : float, optional
+        t_stop : float | None
             The end time of the tonic input in milliseconds. If None, the bias
             continues until the end of the simulation.
-        gid : int | list | None
-            The gid(s) of `cell_type` to which the bias is applied. If None, the
-            bias is applied to all cells of `cell_type`. Each supplied gid must
-            belong to `cell_type`.
+        gid : list
+            The a list of gid(s) of `cell_type` to which the bias is applied.
         """
-        # Validate that the requested gids belong to this cell type. `None` means
-        # "all cells of this type", so there is nothing to validate. Single gids
-        # are normalized to a list so the stored representation is consistent.
-        if gid is not None:
-            # KDTODO if gid is provided as a list, wouldn't this accidentally wrap it in
-            # TODO gid should probably always be a list at this stage
-            gids = [gid] if isinstance(gid, int) else list(gid)
-            # for tgid in gids:
-            #     _validate_type(tgid, int, "gid")
-            #     tgid_type = self.gid_to_type(tgid)
-            #     if tgid_type != cell_type:
-            #         raise ValueError(
-            #             f"GID {tgid} was given a '{cell_type}' bias but is of type "
-            #             f"'{tgid_type}'. When defining cell types alongside GIDs, "
-            #             "ensure that GIDs are within the correct range."
-            #         )
-            gid = gids
-
         cell_type_bias = {
             "amplitude": amplitude,
             "t0": t_0,
@@ -2004,7 +1983,7 @@ class Network:
         Parameters
         ----------
         amplitude: dict | int | float
-            Required parameter.
+            Required parameter. All amplitudes should be given in units of nA.
             - If given as a dictionary, keys should be cell type names (as in
               ``net.cell_types``) and values should be the amplitude of the tonic input
               for that cell type as a float.
@@ -2077,10 +2056,10 @@ class Network:
         # Finally, actually add the validated biases
         for _cell_type, _amplitude in normalized_amplitude.items():
             self._add_cell_type_bias(
+                amplitude=_amplitude,
                 cell_type=_cell_type,
                 section=section,
                 bias_name=bias_name,
-                amplitude=_amplitude,
                 t_0=t0,
                 t_stop=tstop,
                 gid=normalized_gid[_cell_type],
