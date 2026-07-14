@@ -486,23 +486,7 @@ class NetworkBuilder(object):
                         continue
 
                     bias_params = self.net.external_biases[bias][src_type]
-                    target_gids = bias_params["gid"]
-
-                    # Gids are validated against their cell type at bias
-                    # definition time (Network.add_tonic_bias), so here we only
-                    # decide which cells the bias targets.
-                    # Which cells does this bias target?
-                    #   None -> all cells of this type
-                    #   list -> cells whose gid is in the list
-                    #   int  -> the single cell whose gid matches
-                    if target_gids is None:
-                        apply_bias = True
-                    elif isinstance(target_gids, list):
-                        apply_bias = gid in target_gids
-                    else:
-                        apply_bias = gid == target_gids
-
-                    if apply_bias:
+                    if gid in bias_params["gid"]:
                         cell._create_tonic_bias(**bias_params)
 
                 cell.record(record_vsec, record_isec, record_ca)

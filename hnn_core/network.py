@@ -2776,49 +2776,44 @@ def _resolve_bias_gids(network, cell_types, gid):
         gids did not include any gid of that type. Used to warn the user.
     """
     # First, let's initialize our future normalized gid dictionary. Since everything has
-    # been validated, amplitude was normalized before this function, its keys were
-    # passed in as the cell types, we can use those same keys for our cell types here.
-    normalized_gid = {cell_type: None for cell_type in cell_types}
+    # been validated, and amplitude has been normalized, we can be sure that these are
+    # the correct keys for normalized_gid:
+    normalized_gid = {cell_type: [] for cell_type in cell_types}
     fallback_types = set()
 
     if gid is None:
-        pass
+        for celltype in cell_types:
+            normalized_gid[celltype] = list(network.gid_ranges[celltype])
 
-    elif isinstance(gid, (int, list)):
-        gids = [gid] if isinstance(gid, int) else list(gid)
+    elif isinstance(gid, int):
+        # If there is only one gid, then there is only one cell type used
+        normalized_gid[cell_types[0]] = [gid]
 
-        # With a single biased cell type the gids are unambiguous: assign them all
-        # and let `_add_cell_type_bias` validate that they belong to that type.
+    elif isinstance(gid, list):
         if len(cell_types) == 1:
-            normalized_gid[cell_types[0]] = gids
-
+            normalized_gid[cell_types[0]] = gid
         else:
             # Multiple biased cell types -- group each gid by the cell type it belongs
             # to so the right amplitude is applied to the right cells.
-            grouped = {cell_type: [] for cell_type in cell_types}
-            for _gid in gids:
+            for _gid in gid:
                 _gid_type = network.gid_to_type(_gid)
-                grouped[_gid_type].append(_gid)
-
-            for cell_type in cell_types:
-                if grouped[cell_type]:
-                    normalized_gid[cell_type] = grouped[cell_type]
-                else:
-                    # No gid in the list belongs to this type -> apply to all its cells.
-                    fallback_types.add(cell_type)
+                normalized_gid[_gid_type].append(_gid)
 
     elif isinstance(gid, dict):
         # Explicit {cell_type: gid(s)} mapping -- normalize each value to a list.
         #
         # If gid is a dict, then we've already validated that its keys match those of
         # the normalized amplitude dictionary, so we can just iterate over the keys.
-
-        # TODO UNDO NONE
-        # TODO ALL
         for _cell_type, _gids in gid.items():
-            normalized_gid[_cell_type] = (
-                [_gids] if isinstance(_gids, int) else list(_gids)
-            )
+            if isinstance(_gids, int):
+                normalized_gid[_cell_type] = [_gids]
+            elif isinstance(_gids, list):
+                normalized_gid[_cell_type] = _gids
+            elif _gids == "all":
+                normalized_gid[_cell_type] = list(network.gid_ranges[_cell_type])
+
+    for cell_type in normalized_gid.keys():
+        normalized_gid[cell_type].sort()
 
     return normalized_gid, fallback_types
 
