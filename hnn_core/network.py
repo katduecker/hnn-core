@@ -1683,7 +1683,7 @@ class Network:
             # - amplitude: int | float
             # - gid: NOT SUPPORTED! Supporting both gid and the deprecated cell_type
             #   will increase the complexity of the validation we need to do even
-            #   further.
+            #   further!
             warnings.warn(
                 "cell_type argument will be deprecated and removed in future releases. "
                 "Instead, see the documentation for arguments 'amplitude' and 'gid' "
@@ -1701,6 +1701,10 @@ class Network:
             _check_cell_types_validity([cell_type])
 
         else:
+            # Argument variants: For everything in this else block, 'cell_type' is not
+            # supported, and 'amplitude' can be a dict, int, or float. This else block
+            # will go through all type variants of 'gid', including int, list, and dict,
+            # and if 'gid' is a dict, whether the values are of type int, list, or str.
             if isinstance(amplitude, (int, float)) and gid is None:
                 raise ValueError(
                     "When `amplitude` is an int or float, `gid` must be specified so "
@@ -2041,6 +2045,48 @@ class Network:
             those listed in `net.cell_types`. When supplied, the `amplitude` keyword
             must be provided as a float. This argument will be removed in future
             releases.
+
+        Examples
+        --------
+        Apply the same amplitude to all cells of two cell types:
+
+        >>> net.add_tonic_bias(amplitude={'L2_pyramidal': 1.0, 'L5_pyramidal': 2.0})
+
+        Apply a single amplitude to a single cell, specified by providing that cell's
+        GID to `gid` as an int:
+
+        >>> net.add_tonic_bias(amplitude=1.0, gid=5)
+
+        Apply a single amplitude to several cells, specified by `gid` as a list of ints,
+        regardless of the cell type(s) they belong to (this will NOT check whether the
+        gids belong to the same cell type):
+
+        >>> net.add_tonic_bias(amplitude=1.0, gid=[5, 6, 35])
+
+        Apply a single amplitude to several cells, specified by `gid` as a dictionary of
+        per-cell-type GIDs (this WILL check whether the gids belong to the cell type
+        they are mapped to):
+
+        >>> net.add_tonic_bias(
+        ...     amplitude=1.0,
+        ...     gid={'L2_pyramidal': [5, 6], 'L5_pyramidal': 35},
+        ... )
+
+        Apply per-cell-type amplitudes, restricting each to specific gids using a
+        dictionary for `gid`:
+
+        >>> net.add_tonic_bias(
+        ...     amplitude={'L2_pyramidal': 1.0, 'L5_pyramidal': 2.0},
+        ...     gid={'L2_pyramidal': [5, 6], 'L5_pyramidal': 35},
+        ... )
+
+        Apply per-cell-type amplitudes, using the string ``'all'`` in the `gid`
+        dictionary to apply the bias to every cell of that type:
+
+        >>> net.add_tonic_bias(
+        ...     amplitude={'L2_pyramidal': 1.0, 'L5_pyramidal': 2.0},
+        ...     gid={'L2_pyramidal': 'all', 'L5_pyramidal': 35},
+        ... )
         """
         # There is a large amount of input validation, so this is separated into its own
         # function.
