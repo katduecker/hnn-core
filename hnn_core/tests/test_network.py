@@ -1374,15 +1374,6 @@ def test_tonic_bias_gid_routing():
     ):
         net.add_tonic_bias(amplitude=amplitude, gid=l2_gids)
 
-    # with pytest.warns(UserWarning) as record:
-    #     net.add_tonic_bias(amplitude=amplitude, gid=l2_gids)
-    # assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
-    # # None means "all cells of this type"
-    # assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] is None
-    # messages = [str(w.message) for w in record]
-    # assert any(f"applied to gids {l2_gids} for L2_pyramidal" in m for m in messages)
-    # assert any("applied to all gids of L5_pyramidal" in m for m in messages)
-
     # a gid belonging to neither biased cell type raises
     # ----------------------------------------------------------------------------------
     net = neymotin_2020_model()
@@ -1405,20 +1396,15 @@ def test_tonic_bias_gid_routing():
     # a single float amplitude with gids infers the cell type(s) from the gids
     # ----------------------------------------------------------------------------------
     net = neymotin_2020_model()
-    with pytest.warns(UserWarning) as record:
-        net.add_tonic_bias(amplitude=0.5, gid=l2_gids + l5_gids)
+    net.add_tonic_bias(amplitude=0.5, gid=l2_gids + l5_gids)
     assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
     assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == l5_gids
     assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 0.5
     assert net.external_biases["tonic"]["L5_pyramidal"]["amplitude"] == 0.5
-    messages = [str(w.message) for w in record]
-    assert any(f"applied to gids {l2_gids} for L2_pyramidal" in m for m in messages)
-    assert any(f"applied to gids {l5_gids} for L5_pyramidal" in m for m in messages)
 
     # a single float amplitude with a single gid (int) also works
     net = neymotin_2020_model()
-    with pytest.warns(UserWarning, match="applied to gids"):
-        net.add_tonic_bias(amplitude=0.5, gid=l2_gids[0])
+    net.add_tonic_bias(amplitude=0.5, gid=l2_gids[0])
     assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == [l2_gids[0]]
 
     # a float amplitude without gid raises
