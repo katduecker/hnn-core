@@ -1617,7 +1617,7 @@ class Network:
         This has the same function signature as Network.add_tonic_bias.
         """
 
-        def _check_cell_types(input_cell_types):
+        def _check_cell_types_validity(input_cell_types):
             """Helper function to validate any cell types against the network, section, and bias_name."""
             for input_type in input_cell_types:
                 # Validate that the cell type is known to the network
@@ -1643,12 +1643,33 @@ class Network:
                         f"exist. Section must be one of {valid_sections}."
                     )
 
+        def _check_gids_celltype_match(gids_to_check, amplitude, input_cell_type=None):
+            """Helper function to validate that provided GIDs match provided celltypes in `amplitude` and/or `gid`."""
+            for _gid in gids_to_check:
+                _gid_type = self.gid_to_type(_gid)
+                if _gid_type is None:
+                    raise ValueError(
+                        f"Invalid gid {_gid}; not found in net.gid_ranges: "
+                        f"({self.gid_ranges})."
+                    )
+                elif isinstance(amplitude, dict) and _gid_type not in amplitude.keys():
+                    raise ValueError(
+                        f"GID {_gid} is of cell type '{_gid_type}', but this cell "
+                        "type is not present in the 'amplitude' dictionary."
+                    )
+                elif input_cell_type is not None and _gid_type != input_cell_type:
+                    raise ValueError(
+                        f"GID {_gid} belongs to cell type '{_gid_type}' instead of "
+                        "the argument-provided cell type for this gid "
+                        f"({input_cell_type})."
+                    )
+
         # Validate the argument logic, detect what cell_types were passed (if any), and
         # detect whether 'gids' is used.
         # ------------------------------------------------------------------------------
         _validate_type(amplitude, (int, float, dict), "amplitude")
         if isinstance(amplitude, dict):
-            _check_cell_types(list(amplitude.keys()))
+            _check_cell_types_validity(list(amplitude.keys()))
 
         # Deprecated functionality: single "cell_type" and single "amplitude".
         if cell_type is not None:
@@ -1660,7 +1681,7 @@ class Network:
                 stacklevel=1,
             )
             _validate_type(amplitude, (float, int), "amplitude")
-            _check_cell_types([cell_type])
+            _check_cell_types_validity([cell_type])
 
         else:
             if isinstance(amplitude, (int, float)) and gid is None:
@@ -1675,14 +1696,29 @@ class Network:
                 _validate_type(gid, (int, list, dict), "gid")
 
             if isinstance(gid, int):
-                _check_cell_types([self.gid_to_type(gid)])
+                _check_cell_types_validity([self.gid_to_type(gid)])
+                _check_gids_celltype_match([gid], amplitude)
                 if gid > (self._n_gids - 1):
                     raise ValueError(
                         f"gid {gid} is invalid; must be less than {self._n_gids}"
                     )
+                if isinstance(amplitude, dict):
+                    if len(amplitude.keys()) > 1:
+                        raise ValueError(
+                            "When `amplitude` is a dictionary and `gid` is an int, "
+                            "the dictionary must contain only one key-value pair. "
+                            f"Got {len(amplitude.keys())} keys."
+                        )
 
             elif isinstance(gid, list):
-                _check_cell_types(list(set([self.gid_to_type(_gid) for _gid in gid])))
+                _check_cell_types_validity(
+                    list(set([self.gid_to_type(_gid) for _gid in gid]))
+                )
+                _check_gids_celltype_match(gid, amplitude)
+                if max(gid) > (self._n_gids - 1):
+                    raise ValueError(
+                        f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
+                    )
                 if len(gid) == 0:
                     warnings.warn(
                         "The provided 'gid' argument is empty, therefore no "
@@ -1692,12 +1728,8 @@ class Network:
                     )
                     return
 
-                if max(gid) > (self._n_gids - 1):
-                    raise ValueError(
-                        f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
-                    )
             elif isinstance(gid, dict):
-                _check_cell_types(gid.keys())
+                _check_cell_types_validity(gid.keys())
                 if isinstance(amplitude, dict):
                     if set(amplitude.keys()) != set(gid.keys()):
                         raise ValueError(
@@ -1712,13 +1744,24 @@ class Network:
                     _validate_type(gid_value, (int, list), "gid.values()")
 
                     if isinstance(gid_value, int):
+                        _check_gids_celltype_match(
+                            [gid_value], amplitude, input_cell_type
+                        )
                         if gid_value > (self._n_gids - 1):
                             raise ValueError(
                                 f"gid {gid_value} is invalid; must be less than {self._n_gids}"
                             )
-                        gids_to_check = [gid_value]
 
                     elif isinstance(gid_value, list):
+                        _check_gids_celltype_match(
+                            gid_value, amplitude, input_cell_type
+                        )
+                        if max(gid_value) > (self._n_gids - 1):
+                            raise ValueError(
+                                f"gid {max(gid_value)} is invalid; must be less than "
+                                f"{self._n_gids}"
+                            )
+
                         if len(gid_value) == 0:
                             warnings.warn(
                                 f"The provided 'gid' argument for cell type "
@@ -1729,44 +1772,21 @@ class Network:
                                 stacklevel=1,
                             )
                             continue
-                        if max(gid_value) > (self._n_gids - 1):
-                            raise ValueError(
-                                f"gid {max(gid_value)} is invalid; must be less than "
-                                f"{self._n_gids}"
-                            )
-                        gids_to_check = gid_value
 
                     elif isinstance(gid_value, str):
+                        # Whether GIDs match their celltype does not need to be
+                        # performed in this case.
                         if gid_value != "all":
                             raise ValueError(
                                 "When specifying a cell type's gid value as a string, "
                                 "the only valid option is 'all'. "
                             )
-                        gids_to_check = None
-
                     else:
                         raise ValueError(
-                            f"Invalid gid value {gid_value} for cell type {input_cell_type}. "
-                            f"Value must must be an int or list of ints, "
-                            "or the string 'all'."
+                            f"Invalid gid value {gid_value} for cell type "
+                            f"{input_cell_type}. Value must must be an int, list of "
+                            "ints, or the string 'all'."
                         )
-
-                    for _gid in gids_to_check:
-                        _gid_type = self.gid_to_type(_gid)
-                        if _gid_type != input_cell_type:
-                            raise ValueError(
-                                f"GID {_gid} was given a '{input_cell_type}' bias but is of type "
-                                f"'{_gid_type}'. When defining cell types alongside GIDs, "
-                                "ensure that GIDs are within the correct range."
-                            )
-                        elif (
-                            isinstance(amplitude, dict)
-                            and _gid_type not in amplitude.keys()
-                        ):
-                            raise ValueError(
-                                f"GID {_gid} is of cell type {_gid_type}, but this cell "
-                                "type is not present in the 'amplitudes' dictionary."
-                            )
 
     def add_tonic_bias(
         self,
@@ -2739,51 +2759,50 @@ def _resolve_bias_gids(network, cell_types, gid):
         Cell types that were assigned all of their cells because a flat list of
         gids did not include any gid of that type. Used to warn the user.
     """
+    # First, let's initialize our future normalized gid dictionary. Since everything has
+    # been validated, amplitude was normalized before this function, its keys were
+    # passed in as the cell types, we can use those same keys for our cell types here.
     normalized_gid = {cell_type: None for cell_type in cell_types}
     fallback_types = set()
 
     if gid is None:
-        return normalized_gid, fallback_types
+        pass
 
-    # Explicit {cell_type: gid(s)} mapping -- normalize each value to a list.
-    if isinstance(gid, dict):
+    elif isinstance(gid, (int, list)):
+        gids = [gid] if isinstance(gid, int) else list(gid)
+
+        # With a single biased cell type the gids are unambiguous: assign them all
+        # and let `_add_cell_type_bias` validate that they belong to that type.
+        if len(cell_types) == 1:
+            normalized_gid[cell_types[0]] = gids
+
+        else:
+            # Multiple biased cell types -- group each gid by the cell type it belongs
+            # to so the right amplitude is applied to the right cells.
+            grouped = {cell_type: [] for cell_type in cell_types}
+            for _gid in gids:
+                _gid_type = network.gid_to_type(_gid)
+                grouped[_gid_type].append(_gid)
+
+            for cell_type in cell_types:
+                if grouped[cell_type]:
+                    normalized_gid[cell_type] = grouped[cell_type]
+                else:
+                    # No gid in the list belongs to this type -> apply to all its cells.
+                    fallback_types.add(cell_type)
+
+    elif isinstance(gid, dict):
+        # Explicit {cell_type: gid(s)} mapping -- normalize each value to a list.
+        #
+        # If gid is a dict, then we've already validated that its keys match those of
+        # the normalized amplitude dictionary, so we can just iterate over the keys.
+
+        # TODO UNDO NONE
+        # TODO ALL
         for _cell_type, _gids in gid.items():
             normalized_gid[_cell_type] = (
                 [_gids] if isinstance(_gids, int) else list(_gids)
             )
-        return normalized_gid, fallback_types
-
-    # Flat int or list of gids.
-    _validate_type(gid, (int, list), "gid")
-    gids = [gid] if isinstance(gid, int) else list(gid)
-
-    # With a single biased cell type the gids are unambiguous: assign them all
-    # and let `_add_cell_type_bias` validate that they belong to that type.
-    if len(cell_types) == 1:
-        normalized_gid[cell_types[0]] = gids
-        return normalized_gid, fallback_types
-
-    # Multiple biased cell types -- group each gid by the cell type it belongs
-    # to so the right amplitude is applied to the right cells.
-    grouped = {cell_type: [] for cell_type in cell_types}
-    for _gid in gids:
-        _validate_type(_gid, int, "gid")
-        _gid_type = network.gid_to_type(_gid)
-        if _gid_type is None:
-            raise ValueError(f"Invalid gid {_gid}; not found in net.gid_ranges.")
-        if _gid_type not in cell_types:
-            raise ValueError(
-                f"gid {_gid} belongs to cell type '{_gid_type}', which is not "
-                f"among the cell types with a defined bias ({cell_types})."
-            )
-        grouped[_gid_type].append(_gid)
-
-    for cell_type in cell_types:
-        if grouped[cell_type]:
-            normalized_gid[cell_type] = grouped[cell_type]
-        else:
-            # No gid in the list belongs to this type -> apply to all its cells.
-            fallback_types.add(cell_type)
 
     return normalized_gid, fallback_types
 

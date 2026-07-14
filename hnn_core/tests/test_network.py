@@ -1320,7 +1320,7 @@ def test_tonic_biases():
     target_gids = {"L2_pyramidal": 20}
     with pytest.raises(
         ValueError,
-        match="GID 20 was given a 'L2_pyramidal' bias but is of type 'L2_basket'. When defining cell types alongside GIDs, ensure that GIDs are within the correct range.",
+        match="GID 20 belongs to cell type 'L2_basket' instead of",
     ):
         net.add_tonic_bias(
             gid=target_gids,
@@ -1382,7 +1382,7 @@ def test_tonic_bias_gid_routing():
     basket_gid = list(net.gid_ranges["L2_basket"])[0]
     with pytest.raises(
         ValueError,
-        match=f"gid {basket_gid} belongs to cell type 'L2_basket', which is not",
+        match=f"GID {basket_gid} is of cell type 'L2_basket', but this cell type is not",
     ):
         net.add_tonic_bias(amplitude=amplitude, gid=[basket_gid])
 
