@@ -1661,7 +1661,6 @@ class Network:
             )
             _validate_type(amplitude, (float, int), "amplitude")
             _check_cell_types([cell_type])
-            amplitude_from_gids = False
 
         else:
             if isinstance(amplitude, (int, float)) and gid is None:
@@ -1769,14 +1768,6 @@ class Network:
                                 "type is not present in the 'amplitudes' dictionary."
                             )
 
-            amplitude_from_gids = True
-
-            if isinstance(amplitude, dict):
-                # TODO DEBUG for now
-                amplitude_from_gids = False
-
-        return amplitude_from_gids
-
     def add_tonic_bias(
         self,
         amplitude,
@@ -1844,7 +1835,7 @@ class Network:
         """
         # There is a large amount of input validation, so this is separated into its own
         # function.
-        amplitude_from_gids = self._validate_tonic_bias_args(
+        self._validate_tonic_bias_args(
             amplitude=amplitude,
             bias_name=bias_name,
             gid=gid,
@@ -1854,25 +1845,44 @@ class Network:
             cell_type=cell_type,
         )
 
-        # Normalize the amplitudes
+        # Normalize the amplitudes, so that every path ends up with a dictionary mapping
+        # cell type to amplitude
         # ------------------------------------------------------------------------------
-        # DEPRECATED: Normalize the deprecated `cell_type`/`amplitude` pair into the
-        # amplitude dictionary so a single code path handles both APIs.
+        # if not infer_celltypes_from_gids:
+        #     # Let's deal with the easy case first, when we are NOT dealing with the
+        #     # `gid` argument.
+        #     if cell_type is not None:
+        #         amplitude = {cell_type: float(amplitude)}
 
-        if not amplitude_from_gids:
-            # Let's deal with the easy case first, when we are NOT dealing with the
-            # `gid` argument.
-            if cell_type is not None:
-                amplitude = {cell_type: float(amplitude)}
-
-        elif amplitude_from_gids:
+        # elif infer_celltypes_from_gids:
+        #     _amplitude_value = float(amplitude)
+        #     _gids = [gid] if isinstance(gid, int) else list(gid)
+        #     amplitude = dict()
+        #     for _gid in _gids:
+        #         _gid_type = self.gid_to_type(_gid)
+        #         amplitude.setdefault(_gid_type, _amplitude_value)
+        if cell_type is not None:
+            amplitude = {cell_type: float(amplitude)}
+            infer_celltypes_from_gids = False  # REMOVE
+        elif isinstance(amplitude, (int, float)):
             _amplitude_value = float(amplitude)
-            _gids = [gid] if isinstance(gid, int) else list(gid)
             amplitude = dict()
-            for _gid in _gids:
-                _gid_type = self.gid_to_type(_gid)
+            if isinstance(gid, (int, float)):
+                _gid_type = self.gid_to_type(gid)
                 amplitude.setdefault(_gid_type, _amplitude_value)
+            elif isinstance(gid, list):
+                for _gid in gid:
+                    _gid_type = self.gid_to_type(_gid)
+                    amplitude.setdefault(_gid_type, _amplitude_value)
+            elif isinstance(gid, dict):
+                for _gid_type in gid.keys():
+                    amplitude.setdefault(_gid_type, _amplitude_value)
 
+            infer_celltypes_from_gids = True  # REMOVE
+        elif isinstance(amplitude, dict):  # REMOVE
+            infer_celltypes_from_gids = False  # REMOVE
+
+        # ------------------------------------------------------------------------------
         # Resolve the `gid` argument into a per-cell-type mapping so that gids
         # are validated against, and routed to, the correct cell type. This
         # converts list/int inputs to the dictionary format used internally.
@@ -1887,7 +1897,7 @@ class Network:
         warn_routing = (
             gid is not None
             and not isinstance(gid, dict)
-            and (len(amplitude) > 1 or amplitude_from_gids)
+            and (len(amplitude) > 1 or infer_celltypes_from_gids)
         )
 
         # Finally, actually add the validated biases
