@@ -1804,6 +1804,135 @@ class Network:
                             "ints, or the string 'all'."
                         )
 
+    def _resolve_bias_gids(self, cell_types, gid):
+        """Resolve the ``gid`` argument of a tonic bias into a per-cell-type map.
+
+        The ``gid`` argument of :meth:`Network.add_tonic_bias` may be given as a
+        single gid, a list of gids, a ``{cell_type: gid(s)}`` dictionary, or None.
+        This routes each form into a dictionary mapping every biased cell type to
+        either ``None`` (all cells of that type) or a list of gids of that type.
+
+        Parameters
+        ----------
+        cell_types : list of str
+            The cell types for which a bias is being defined (the keys of the
+            ``amplitude`` dictionary).
+        gid : int | list | dict | None
+            The user-provided gid specification.
+
+        Returns
+        -------
+        normalized_gid : dict
+            Maps each cell type in `cell_types` to ``None`` (all cells) or a list
+            of gids belonging to that cell type.
+        """
+        # First, let's initialize our future normalized gid dictionary. Since everything has
+        # been validated, and amplitude has been normalized, we can be sure that these are
+        # the correct keys for normalized_gid:
+        normalized_gid = {cell_type: [] for cell_type in cell_types}
+
+        if gid is None:
+            for celltype in cell_types:
+                normalized_gid[celltype] = list(self.gid_ranges[celltype])
+
+        elif isinstance(gid, int):
+            # If there is only one gid, then there is only one cell type used
+            normalized_gid[cell_types[0]] = [gid]
+
+        elif isinstance(gid, list):
+            if len(cell_types) == 1:
+                normalized_gid[cell_types[0]] = gid
+            else:
+                # Multiple biased cell types -- group each gid by the cell type it belongs
+                # to so the right amplitude is applied to the right cells.
+                for _gid in gid:
+                    _gid_type = self.gid_to_type(_gid)
+                    normalized_gid[_gid_type].append(_gid)
+
+        elif isinstance(gid, dict):
+            # Explicit {cell_type: gid(s)} mapping -- normalize each value to a list.
+            #
+            # If gid is a dict, then we've already validated that its keys match those of
+            # the normalized amplitude dictionary, so we can just iterate over the keys.
+            for _cell_type, _gids in gid.items():
+                if isinstance(_gids, int):
+                    normalized_gid[_cell_type] = [_gids]
+                elif isinstance(_gids, list):
+                    normalized_gid[_cell_type] = _gids
+                elif _gids == "all":
+                    normalized_gid[_cell_type] = list(self.gid_ranges[_cell_type])
+
+        for cell_type in normalized_gid.keys():
+            normalized_gid[cell_type].sort()
+
+        return normalized_gid
+
+    def _add_cell_type_bias(
+        self,
+        amplitude: float,
+        cell_type: str,
+        section="soma",
+        bias_name="tonic",
+        t_0=0,
+        t_stop=None,
+        gid=None,
+    ):
+        """Add a tonic bias to a specific cell type in the network.
+
+        Parameters
+        ----------
+        amplitude : float
+            The amplitude of the tonic input (in nA) applied to the specified
+            `cell_type`.
+        cell_type : str
+            The cell type to which the bias is applied.
+        section : str, default 'soma'
+            The section of the cell where the bias is applied (e.g., 'soma',
+            'apical_tuft').
+        bias_name : str, default 'tonic'
+            A name identifier for the bias configuration, allowing multiple biases
+            to be applied.
+        t_0 : float, default 0
+            The start time of the tonic input in milliseconds.
+        t_stop : float, optional
+            The end time of the tonic input in milliseconds. If None, the bias
+            continues until the end of the simulation.
+        gid : int | list | None
+            The gid(s) of `cell_type` to which the bias is applied. If None, the
+            bias is applied to all cells of `cell_type`. Each supplied gid must
+            belong to `cell_type`.
+        """
+        # Validate that the requested gids belong to this cell type. `None` means
+        # "all cells of this type", so there is nothing to validate. Single gids
+        # are normalized to a list so the stored representation is consistent.
+        if gid is not None:
+            # KDTODO if gid is provided as a list, wouldn't this accidentally wrap it in
+            # TODO gid should probably always be a list at this stage
+            gids = [gid] if isinstance(gid, int) else list(gid)
+            # for tgid in gids:
+            #     _validate_type(tgid, int, "gid")
+            #     tgid_type = self.gid_to_type(tgid)
+            #     if tgid_type != cell_type:
+            #         raise ValueError(
+            #             f"GID {tgid} was given a '{cell_type}' bias but is of type "
+            #             f"'{tgid_type}'. When defining cell types alongside GIDs, "
+            #             "ensure that GIDs are within the correct range."
+            #         )
+            gid = gids
+
+        cell_type_bias = {
+            "amplitude": amplitude,
+            "t0": t_0,
+            "tstop": t_stop,
+            "section": section,
+            "gid": gid,
+        }
+
+        if bias_name not in self.external_biases:
+            self.external_biases[bias_name] = dict()
+
+        self.external_biases[bias_name][cell_type] = cell_type_bias
+
     def add_tonic_bias(
         self,
         amplitude,
@@ -1909,15 +2038,15 @@ class Network:
         #
         # At this point, `normalized_amplitude` is guaranteed to be a dictionary mapping cell type
         # to amplitude.
-        normalized_gid = _resolve_bias_gids(
-            self, list(normalized_amplitude.keys()), gid
+        normalized_gid = self._resolve_bias_gids(
+            list(normalized_amplitude.keys()),
+            gid,
         )
 
         # Finally, actually add the validated biases
         # ------------------------------------------------------------------------------
         for _cell_type, _amplitude in normalized_amplitude.items():
-            _add_cell_type_bias(
-                network=self,
+            self._add_cell_type_bias(
                 cell_type=_cell_type,
                 section=section,
                 bias_name=bias_name,
@@ -2703,141 +2832,6 @@ class _NetworkDrive(dict):
             entr += f"\nevent times instantiated for {len(self['events'])} trial{plurl}"
         entr += ">"
         return entr
-
-
-def _resolve_bias_gids(network, cell_types, gid):
-    """Resolve the ``gid`` argument of a tonic bias into a per-cell-type map.
-
-    The ``gid`` argument of :meth:`Network.add_tonic_bias` may be given as a
-    single gid, a list of gids, a ``{cell_type: gid(s)}`` dictionary, or None.
-    This routes each form into a dictionary mapping every biased cell type to
-    either ``None`` (all cells of that type) or a list of gids of that type.
-
-    Parameters
-    ----------
-    network : Network
-        The network whose ``gid_ranges`` are used to look up gid cell types.
-    cell_types : list of str
-        The cell types for which a bias is being defined (the keys of the
-        ``amplitude`` dictionary).
-    gid : int | list | dict | None
-        The user-provided gid specification.
-
-    Returns
-    -------
-    normalized_gid : dict
-        Maps each cell type in `cell_types` to ``None`` (all cells) or a list
-        of gids belonging to that cell type.
-    """
-    # First, let's initialize our future normalized gid dictionary. Since everything has
-    # been validated, and amplitude has been normalized, we can be sure that these are
-    # the correct keys for normalized_gid:
-    normalized_gid = {cell_type: [] for cell_type in cell_types}
-
-    if gid is None:
-        for celltype in cell_types:
-            normalized_gid[celltype] = list(network.gid_ranges[celltype])
-
-    elif isinstance(gid, int):
-        # If there is only one gid, then there is only one cell type used
-        normalized_gid[cell_types[0]] = [gid]
-
-    elif isinstance(gid, list):
-        if len(cell_types) == 1:
-            normalized_gid[cell_types[0]] = gid
-        else:
-            # Multiple biased cell types -- group each gid by the cell type it belongs
-            # to so the right amplitude is applied to the right cells.
-            for _gid in gid:
-                _gid_type = network.gid_to_type(_gid)
-                normalized_gid[_gid_type].append(_gid)
-
-    elif isinstance(gid, dict):
-        # Explicit {cell_type: gid(s)} mapping -- normalize each value to a list.
-        #
-        # If gid is a dict, then we've already validated that its keys match those of
-        # the normalized amplitude dictionary, so we can just iterate over the keys.
-        for _cell_type, _gids in gid.items():
-            if isinstance(_gids, int):
-                normalized_gid[_cell_type] = [_gids]
-            elif isinstance(_gids, list):
-                normalized_gid[_cell_type] = _gids
-            elif _gids == "all":
-                normalized_gid[_cell_type] = list(network.gid_ranges[_cell_type])
-
-    for cell_type in normalized_gid.keys():
-        normalized_gid[cell_type].sort()
-
-    return normalized_gid
-
-
-def _add_cell_type_bias(
-    network: Network,
-    amplitude: float,
-    cell_type: str,
-    section="soma",
-    bias_name="tonic",
-    t_0=0,
-    t_stop=None,
-    gid=None,
-):
-    """Add a tonic bias to a specific cell type in the network.
-
-    Parameters
-    ----------
-    network : Network
-        The network to which the tonic bias is added.
-    amplitude : float
-        The amplitude of the tonic input (in nA) applied to the specified
-        `cell_type`.
-    cell_type : str
-        The cell type to which the bias is applied.
-    section : str, default 'soma'
-        The section of the cell where the bias is applied (e.g., 'soma',
-        'apical_tuft').
-    bias_name : str, default 'tonic'
-        A name identifier for the bias configuration, allowing multiple biases
-        to be applied.
-    t_0 : float, default 0
-        The start time of the tonic input in milliseconds.
-    t_stop : float, optional
-        The end time of the tonic input in milliseconds. If None, the bias
-        continues until the end of the simulation.
-    gid : int | list | None
-        The gid(s) of `cell_type` to which the bias is applied. If None, the
-        bias is applied to all cells of `cell_type`. Each supplied gid must
-        belong to `cell_type`.
-    """
-    # Validate that the requested gids belong to this cell type. `None` means
-    # "all cells of this type", so there is nothing to validate. Single gids
-    # are normalized to a list so the stored representation is consistent.
-    if gid is not None:
-        # KDTODO if gid is provided as a list, wouldn't this accidentally wrap it in
-        # TODO gid should probably always be a list at this stage
-        gids = [gid] if isinstance(gid, int) else list(gid)
-        # for tgid in gids:
-        #     _validate_type(tgid, int, "gid")
-        #     tgid_type = network.gid_to_type(tgid)
-        #     if tgid_type != cell_type:
-        #         raise ValueError(
-        #             f"GID {tgid} was given a '{cell_type}' bias but is of type "
-        #             f"'{tgid_type}'. When defining cell types alongside GIDs, "
-        #             "ensure that GIDs are within the correct range."
-        #         )
-        gid = gids
-
-    cell_type_bias = {
-        "amplitude": amplitude,
-        "t0": t_0,
-        "tstop": t_stop,
-        "section": section,
-        "gid": gid,
-    }
-
-    if bias_name not in network.external_biases:
-        network.external_biases[bias_name] = dict()
-
-    network.external_biases[bias_name][cell_type] = cell_type_bias
 
 
 def _check_global_synaptic_gains_uniformity(net):
