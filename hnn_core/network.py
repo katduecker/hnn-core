@@ -1672,9 +1672,9 @@ class Network:
                 )
 
             if gid is not None:
-                _validate_type(gid, (int, float, list, dict), "gid")
+                _validate_type(gid, (int, list, dict), "gid")
 
-            if isinstance(gid, int) or isinstance(gid, float):
+            if isinstance(gid, int):
                 _check_cell_types([self.gid_to_type(gid)])
                 if gid > (self._n_gids - 1):
                     raise ValueError(
@@ -1709,9 +1709,9 @@ class Network:
 
                 for input_cell_type, gid_value in gid.items():
                     _validate_type(input_cell_type, str, "gid.keys()")
-                    _validate_type(gid_value, (int, float, list), "gid.values()")
+                    _validate_type(gid_value, (int, list), "gid.values()")
 
-                    if isinstance(gid_value, int) or isinstance(gid_value, float):
+                    if isinstance(gid_value, int):
                         if gid_value > (self._n_gids - 1):
                             raise ValueError(
                                 f"gid {gid_value} is invalid; must be less than {self._n_gids}"
@@ -1747,7 +1747,7 @@ class Network:
                     else:
                         raise ValueError(
                             f"Invalid gid value {gid_value} for cell type {input_cell_type}. "
-                            f"Value must must be an int, float, a list of ints/floats, "
+                            f"Value must must be an int or list of ints, "
                             "or the string 'all'."
                         )
 
@@ -1867,7 +1867,7 @@ class Network:
         elif isinstance(amplitude, (int, float)):
             _amplitude_value = float(amplitude)
             normalized_amplitude = dict()
-            if isinstance(gid, (int, float)):
+            if isinstance(gid, int):
                 _gid_type = self.gid_to_type(gid)
                 normalized_amplitude.setdefault(_gid_type, _amplitude_value)
             elif isinstance(gid, list):
