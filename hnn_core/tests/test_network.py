@@ -1425,6 +1425,79 @@ def test_tonic_bias_gid_routing():
         net.add_tonic_bias(amplitude=0.5)
 
 
+def test_tonic_bias_docstring_examples():
+    """Test each example call given in the Network.add_tonic_bias docstring."""
+    # Example 1: dict amplitude, no gid -- applies to all cells of both types
+    net = neymotin_2020_model()
+    net.add_tonic_bias(amplitude={"L2_pyramidal": 1.0, "L5_pyramidal": 2.0})
+    assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L5_pyramidal"]["amplitude"] == 2.0
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == list(
+        net.gid_ranges["L2_pyramidal"]
+    )
+    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == list(
+        net.gid_ranges["L5_pyramidal"]
+    )
+
+    # Example 2: float amplitude, single gid (int)
+    net = neymotin_2020_model()
+    single_gid = list(net.gid_ranges["L2_pyramidal"])[0]
+    net.add_tonic_bias(amplitude=1.0, gid=single_gid)
+    assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == [single_gid]
+
+    # Example 3: float amplitude, gid as a flat list spanning multiple cell types
+    net = neymotin_2020_model()
+    l2_gids = list(net.gid_ranges["L2_pyramidal"])[:2]
+    l5_gid = list(net.gid_ranges["L5_pyramidal"])[0]
+    net.add_tonic_bias(amplitude=1.0, gid=l2_gids + [l5_gid])
+    assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L5_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == sorted(l2_gids)
+    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == [l5_gid]
+
+    # Example 4: float amplitude, gid as a {cell_type: gid(s)} dictionary
+    net = neymotin_2020_model()
+    l2_gids = list(net.gid_ranges["L2_pyramidal"])[:2]
+    l5_gid = list(net.gid_ranges["L5_pyramidal"])[0]
+    net.add_tonic_bias(
+        amplitude=1.0,
+        gid={"L2_pyramidal": l2_gids, "L5_pyramidal": l5_gid},
+    )
+    assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L5_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
+    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == [l5_gid]
+
+    # Example 5: dict amplitude, gid as a matching {cell_type: gid(s)} dictionary
+    net = neymotin_2020_model()
+    l2_gids = list(net.gid_ranges["L2_pyramidal"])[:2]
+    l5_gid = list(net.gid_ranges["L5_pyramidal"])[0]
+    net.add_tonic_bias(
+        amplitude={"L2_pyramidal": 1.0, "L5_pyramidal": 2.0},
+        gid={"L2_pyramidal": l2_gids, "L5_pyramidal": l5_gid},
+    )
+    assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L5_pyramidal"]["amplitude"] == 2.0
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
+    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == [l5_gid]
+
+    # Example 6: dict amplitude, gid dictionary using the string 'all' for one
+    # cell type and an explicit gid for the other
+    net = neymotin_2020_model()
+    l5_gid = list(net.gid_ranges["L5_pyramidal"])[0]
+    net.add_tonic_bias(
+        amplitude={"L2_pyramidal": 1.0, "L5_pyramidal": 2.0},
+        gid={"L2_pyramidal": "all", "L5_pyramidal": l5_gid},
+    )
+    assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 1.0
+    assert net.external_biases["tonic"]["L5_pyramidal"]["amplitude"] == 2.0
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == list(
+        net.gid_ranges["L2_pyramidal"]
+    )
+    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == [l5_gid]
+
+
 def test_network_mesh():
     """Test mesh for defining cell positions biases."""
     hnn_core_root = op.dirname(hnn_core.__file__)
