@@ -1774,7 +1774,7 @@ class Network:
 
                 for input_cell_type, gid_value in gid.items():
                     _validate_type(input_cell_type, str, "gid.keys()")
-                    _validate_type(gid_value, (int, list), "gid.values()")
+                    _validate_type(gid_value, (int, list, str), "gid.values()")
 
                     if isinstance(gid_value, int):
                         _check_gids_validity([gid_value], amplitude, input_cell_type)
