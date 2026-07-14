@@ -1702,7 +1702,7 @@ class Network:
                     raise ValueError(
                         f"gid {gid} is invalid; must be less than {self._n_gids}"
                     )
-                if isinstance(amplitude, dict):
+                elif isinstance(amplitude, dict):
                     if len(amplitude.keys()) > 1:
                         raise ValueError(
                             "When `amplitude` is a dictionary and `gid` is an int, "
@@ -1719,7 +1719,7 @@ class Network:
                     raise ValueError(
                         f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
                     )
-                if len(gid) == 0:
+                elif len(gid) == 0:
                     warnings.warn(
                         "The provided 'gid' argument is empty, therefore no "
                         "biases have been defined and no action taken.",
@@ -1727,6 +1727,22 @@ class Network:
                         stacklevel=1,
                     )
                     return
+                elif isinstance(amplitude, dict):
+                    gid_detected_cell_types = set(
+                        [self.gid_to_type(_gid) for _gid in gid]
+                    )
+                    amplitude_cell_types = set(amplitude.keys())
+                    if amplitude_cell_types > gid_detected_cell_types:
+                        raise ValueError(
+                            "The 'amplitude' dictionary contains cell types that are "
+                            "not present in the provided 'gid' argument. Please change "
+                            "your 'gid' argument to include either GIDs from the "
+                            "missing cell type, or if your 'gid' is a dictionary, "
+                            "provide 'all' for that celltype to apply the bias to all "
+                            "cells of that type. "
+                            f"Amplitude cell types: {amplitude_cell_types}, "
+                            f"GID cell types: {gid_detected_cell_types}."
+                        )
 
             elif isinstance(gid, dict):
                 _check_cell_types_validity(gid.keys())
@@ -1762,7 +1778,7 @@ class Network:
                                 f"{self._n_gids}"
                             )
 
-                        if len(gid_value) == 0:
+                        elif len(gid_value) == 0:
                             warnings.warn(
                                 f"The provided 'gid' argument for cell type "
                                 f"'{input_cell_type}' is empty, therefore no biases have "
