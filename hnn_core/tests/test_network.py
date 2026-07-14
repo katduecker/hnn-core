@@ -1250,21 +1250,27 @@ def test_tonic_biases():
 
     # Correct type
     assert target_gid in net.gid_ranges[cell_type]
-    net.add_tonic_bias(
-        cell_type=cell_type,
-        gid=target_gid,
-        bias_name="tonic_soma",
-        amplitude=3,
-        t0=10,
-        tstop=15,
-    )
+    with pytest.raises(
+        ValueError,
+        match=(
+            "When using the deprecated 'cell_type' argument, the 'gid' argument is not "
+        ),
+    ):
+        net.add_tonic_bias(
+            cell_type=cell_type,
+            gid=target_gid,
+            bias_name="tonic_soma",
+            amplitude=3,
+            t0=10,
+            tstop=15,
+        )
 
-    # stored correctly (single gids are normalized to a list internally)
-    assert [target_gid] == net.external_biases["tonic_soma"][cell_type]["gid"]
-    dpl = simulate_dipole(net, tstop=20)
-    # the only neuron that fires when connectivity is cleared
-    assert np.unique(np.array(net.cell_response.spike_gids)) == target_gid
-    del net, dpl
+    # # stored correctly (single gids are normalized to a list internally)
+    # assert [target_gid] == net.external_biases["tonic_soma"][cell_type]["gid"]
+    # dpl = simulate_dipole(net, tstop=20)
+    # # the only neuron that fires when connectivity is cleared
+    # assert np.unique(np.array(net.cell_response.spike_gids)) == target_gid
+    # del net, dpl
 
     # list of target gid defined and stored correctly
     # ----------------------------------------------------------------------------------
@@ -1277,23 +1283,29 @@ def test_tonic_biases():
     for target_gid in target_gids:
         assert target_gid in net.gid_ranges[cell_type]
 
-    net.add_tonic_bias(
-        cell_type=cell_type,
-        gid=target_gids,
-        bias_name="tonic_soma",
-        amplitude=3,
-        t0=10,
-        tstop=15,
-    )
+    with pytest.raises(
+        ValueError,
+        match=(
+            "When using the deprecated 'cell_type' argument, the 'gid' argument is not "
+        ),
+    ):
+        net.add_tonic_bias(
+            cell_type=cell_type,
+            gid=target_gids,
+            bias_name="tonic_soma",
+            amplitude=3,
+            t0=10,
+            tstop=15,
+        )
 
-    # stored correctly
-    assert target_gids == net.external_biases["tonic_soma"][cell_type]["gid"]
-    dpl = simulate_dipole(net, tstop=20)
-    # the only neuron that fires when connectivity is cleared
-    only_spiking_gids = np.unique(np.array(net.cell_response.spike_gids))
-    for spiking_gid in only_spiking_gids:
-        assert spiking_gid in target_gids
-    del net, dpl, target_gids, only_spiking_gids
+    # # stored correctly
+    # assert target_gids == net.external_biases["tonic_soma"][cell_type]["gid"]
+    # dpl = simulate_dipole(net, tstop=20)
+    # # the only neuron that fires when connectivity is cleared
+    # only_spiking_gids = np.unique(np.array(net.cell_response.spike_gids))
+    # for spiking_gid in only_spiking_gids:
+    #     assert spiking_gid in target_gids
+    # del net, dpl, target_gids, only_spiking_gids
 
     # If no target gid given, bias applied to all cells of cell_type (backwards compatibility)
     # For this test, remove all connections and ensure that the cells of that particular type spike

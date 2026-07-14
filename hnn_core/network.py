@@ -1605,20 +1605,25 @@ class Network:
     def _validate_tonic_bias_args(
         self,
         amplitude,
-        bias_name="tonic",
-        gid=None,
-        section="soma",
-        t0=0,
-        tstop=None,
-        cell_type=None,
+        bias_name,
+        gid,
+        section,
+        t0,
+        tstop,
+        cell_type,
     ):
-        """Validate the arguments for Network.add_tonic_bias.
+        """Validate the arguments for ``Network.add_tonic_bias``.
 
-        This has the same function signature as Network.add_tonic_bias.
+        This has the same function signature as ``Network.add_tonic_bias``, except that
+        all arguments are required (therefore inheriting from any defaults).
         """
 
         def _check_cell_types_validity(input_cell_types):
-            """Helper function to validate any cell types against the network, section, and bias_name."""
+            """Helper function to validate any cell types against the network, section, and bias_name.
+
+            Note: this is not used for validating individual GIDs, but instead only the
+            cell types themselves.
+            """
             for input_type in input_cell_types:
                 # Validate that the cell type is known to the network
                 if input_type not in self.cell_types:
@@ -1643,13 +1648,13 @@ class Network:
                         f"exist. Section must be one of {valid_sections}."
                     )
 
-        def _check_gids_celltype_match(gids_to_check, amplitude, input_cell_type=None):
+        def _check_gids_validity(gids_to_check, amplitude, input_cell_type=None):
             """Helper function to validate that provided GIDs match provided celltypes in `amplitude` and/or `gid`."""
             for _gid in gids_to_check:
                 _gid_type = self.gid_to_type(_gid)
                 if _gid_type is None:
                     raise ValueError(
-                        f"Invalid gid {_gid}; not found in net.gid_ranges: "
+                        f"Invalid gid {_gid}; not found in Network.gid_ranges: "
                         f"({self.gid_ranges})."
                     )
                 elif isinstance(amplitude, dict) and _gid_type not in amplitude.keys():
@@ -1673,6 +1678,12 @@ class Network:
 
         # Deprecated functionality: single "cell_type" and single "amplitude".
         if cell_type is not None:
+            # Argument variant:
+            # - cell_type : anything
+            # - amplitude: int | float
+            # - gid: NOT SUPPORTED! Supporting both gid and the deprecated cell_type
+            #   will increase the complexity of the validation we need to do even
+            #   further.
             warnings.warn(
                 "cell_type argument will be deprecated and removed in future releases. "
                 "Instead, see the documentation for arguments 'amplitude' and 'gid' "
@@ -1680,6 +1691,12 @@ class Network:
                 DeprecationWarning,
                 stacklevel=1,
             )
+            if gid is not None:
+                raise ValueError(
+                    "When using the deprecated 'cell_type' argument, the 'gid' "
+                    "argument is not supported. Please use the 'amplitude' and 'gid' "
+                    "arguments instead."
+                )
             _validate_type(amplitude, (float, int), "amplitude")
             _check_cell_types_validity([cell_type])
 
@@ -1697,7 +1714,7 @@ class Network:
 
             if isinstance(gid, int):
                 _check_cell_types_validity([self.gid_to_type(gid)])
-                _check_gids_celltype_match([gid], amplitude)
+                _check_gids_validity([gid], amplitude)
                 if gid > (self._n_gids - 1):
                     raise ValueError(
                         f"gid {gid} is invalid; must be less than {self._n_gids}"
@@ -1714,7 +1731,7 @@ class Network:
                 _check_cell_types_validity(
                     list(set([self.gid_to_type(_gid) for _gid in gid]))
                 )
-                _check_gids_celltype_match(gid, amplitude)
+                _check_gids_validity(gid, amplitude)
                 if max(gid) > (self._n_gids - 1):
                     raise ValueError(
                         f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
@@ -1760,18 +1777,14 @@ class Network:
                     _validate_type(gid_value, (int, list), "gid.values()")
 
                     if isinstance(gid_value, int):
-                        _check_gids_celltype_match(
-                            [gid_value], amplitude, input_cell_type
-                        )
+                        _check_gids_validity([gid_value], amplitude, input_cell_type)
                         if gid_value > (self._n_gids - 1):
                             raise ValueError(
                                 f"gid {gid_value} is invalid; must be less than {self._n_gids}"
                             )
 
                     elif isinstance(gid_value, list):
-                        _check_gids_celltype_match(
-                            gid_value, amplitude, input_cell_type
-                        )
+                        _check_gids_validity(gid_value, amplitude, input_cell_type)
                         if max(gid_value) > (self._n_gids - 1):
                             raise ValueError(
                                 f"gid {max(gid_value)} is invalid; must be less than "
@@ -1875,7 +1888,7 @@ class Network:
             A dictionary where keys are cell types and values are lists of gids
             belonging to that cell type.
         """
-        # First, let's initialize our future normalized gid dictionary. Since everything
+        # First, let's initialize our future normalized_gid dictionary. Since everything
         # has been validated, we can be sure that normalized_amplitude has all the cell
         # type keys we're interested in:
         cell_types = list(normalized_amplitude.keys())
@@ -1977,8 +1990,12 @@ class Network:
           - "When biases are defined for multiple cell types and the list does
             not cover one of them, that cell type receives the bias on all of
             its cells (with a warning)."
-        - Discuss this behavior documented in _add_cell_type_bias:
-            - "`None` means "all cells of this type", so there is nothing to validate."
+        - Discuss this comment documented in _add_cell_type_bias: "`None` means "all
+          cells of this type", so there is nothing to validate."
+            - AES: None should mean none, not all or anything else -- we should not use
+              None this way primarily for the user expectations. Instead, I've used a
+              value of the string "all" to represent the same behavior, although we
+              could also use True.
 
         Parameters
         ----------
