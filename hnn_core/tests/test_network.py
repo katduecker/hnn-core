@@ -1340,6 +1340,7 @@ def test_tonic_bias_gid_routing():
     net = neymotin_2020_model()
     l2_gids = list(net.gid_ranges["L2_pyramidal"])[:2]
     l5_gids = list(net.gid_ranges["L5_pyramidal"])[:2]
+
     net.add_tonic_bias(
         amplitude=amplitude,
         gid={"L2_pyramidal": l2_gids, "L5_pyramidal": l5_gids},
@@ -1367,14 +1368,20 @@ def test_tonic_bias_gid_routing():
     # the uncovered cell type, with a warning for each cell type
     # ----------------------------------------------------------------------------------
     net = neymotin_2020_model()
-    with pytest.warns(UserWarning) as record:
+    with pytest.raises(
+        ValueError,
+        match="The 'amplitude' dictionary contains cell types that are not present",
+    ):
         net.add_tonic_bias(amplitude=amplitude, gid=l2_gids)
-    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
-    # None means "all cells of this type"
-    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] is None
-    messages = [str(w.message) for w in record]
-    assert any(f"applied to gids {l2_gids} for L2_pyramidal" in m for m in messages)
-    assert any("applied to all gids of L5_pyramidal" in m for m in messages)
+
+    # with pytest.warns(UserWarning) as record:
+    #     net.add_tonic_bias(amplitude=amplitude, gid=l2_gids)
+    # assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
+    # # None means "all cells of this type"
+    # assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] is None
+    # messages = [str(w.message) for w in record]
+    # assert any(f"applied to gids {l2_gids} for L2_pyramidal" in m for m in messages)
+    # assert any("applied to all gids of L5_pyramidal" in m for m in messages)
 
     # a gid belonging to neither biased cell type raises
     # ----------------------------------------------------------------------------------
