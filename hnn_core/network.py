@@ -1775,7 +1775,6 @@ class Network:
                         )
 
                 for input_cell_type, gid_value in gid.items():
-                    _validate_type(input_cell_type, str, "gid.keys()")
                     _validate_type(gid_value, (int, list, str), "gid.values()")
 
                     if isinstance(gid_value, int):
@@ -1849,7 +1848,8 @@ class Network:
                 for _gid_type in gid.keys():
                     normalized_amplitude.setdefault(_gid_type, _amplitude_value)
         elif isinstance(amplitude, dict):
-            normalized_amplitude = amplitude
+            # Wrap this to prevent changes by reference
+            normalized_amplitude = dict(amplitude)
 
         return normalized_amplitude
 
@@ -1894,7 +1894,7 @@ class Network:
 
         elif isinstance(gid, list):
             if len(cell_types) == 1:
-                normalized_gid[cell_types[0]] = gid
+                normalized_gid[cell_types[0]].extend(gid)
             else:
                 # Multiple biased cell types -- group each gid by the cell type it belongs
                 # to so the right amplitude is applied to the right cells.
@@ -1909,12 +1909,9 @@ class Network:
                 if isinstance(_gids, int):
                     normalized_gid[_cell_type] = [_gids]
                 elif isinstance(_gids, list):
-                    normalized_gid[_cell_type] = _gids
+                    normalized_gid[_cell_type].extend(_gids)
                 elif _gids == "all":
                     normalized_gid[_cell_type] = list(self.gid_ranges[_cell_type])
-
-        for cell_type in normalized_gid.keys():
-            normalized_gid[cell_type].sort()
 
         return normalized_gid
 
