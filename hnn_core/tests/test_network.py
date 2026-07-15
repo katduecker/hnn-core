@@ -1095,8 +1095,8 @@ def test_add_cell_type():
     assert nc.syn().tau1 == tau1
 
 
-def test_tonic_biases():
-    """Test that correct inputs to tonic biases work and simulate correctly."""
+def test_tonic_biases_non_gid():
+    """Test that tonic biases work and simulate correctly (excluding gid argument)."""
     net = neymotin_2020_model()
     tonic_bias_1 = {"L2_pyramidal": 1.0}
     net.add_tonic_bias(amplitude=tonic_bias_1, t0=0.0, tstop=4.0)
@@ -1108,7 +1108,298 @@ def test_tonic_biases():
 
     net.add_tonic_bias(amplitude=tonic_bias_2, bias_name="tonic_2", t0=100)
     assert "tonic_2" in net.external_biases
-    assert net.external_biases["tonic_2"]["L2_pyramidal"]["t0"] == 100
+    assert np.isclose(net.external_biases["tonic_2"]["L2_pyramidal"]["t0"], 100)
+
+    # Taken from first example of `Network.add_tonic_bias` docstring
+    net = neymotin_2020_model()
+    net.add_tonic_bias(amplitude={"L2_pyramidal": 1.0, "L5_pyramidal": 2.0})
+    assert np.isclose(net.external_biases["tonic"]["L2_pyramidal"]["amplitude"], 1.0)
+    assert np.isclose(net.external_biases["tonic"]["L5_pyramidal"]["amplitude"], 2.0)
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == list(
+        net.gid_ranges["L2_pyramidal"]
+    )
+    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == list(
+        net.gid_ranges["L5_pyramidal"]
+    )
+
+    # Reset and test that the deprecated `cell_type` argument still works
+    net.external_biases = dict()
+    with pytest.warns(DeprecationWarning, match=r"cell_type argument will be"):
+        net.add_tonic_bias(amplitude=1.0, cell_type="L2_pyramidal")
+    assert np.isclose(net.external_biases["tonic"]["L2_pyramidal"]["amplitude"], 1.0)
+    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == list(
+        net.gid_ranges["L2_pyramidal"]
+    )
+
+    # Reset and test that remaining non-gid arguments work as expected
+    net = neymotin_2020_model()
+    net.add_tonic_bias(
+        amplitude={"L2_basket": 1.0, "L5_pyramidal": 2.0},
+        bias_name="tonic_soma",
+        section="soma",
+        t0=0.0,
+        tstop=10.0,
+    )
+    assert "tonic_soma" in net.external_biases
+    assert np.isclose(net.external_biases["tonic_soma"]["L2_basket"]["amplitude"], 1.0)
+    assert np.isclose(
+        net.external_biases["tonic_soma"]["L5_pyramidal"]["amplitude"], 2.0
+    )
+    assert net.external_biases["tonic_soma"]["L2_basket"]["gid"] == list(
+        net.gid_ranges["L2_basket"]
+    )
+    assert net.external_biases["tonic_soma"]["L5_pyramidal"]["gid"] == list(
+        net.gid_ranges["L5_pyramidal"]
+    )
+    assert net.external_biases["tonic_soma"]["L2_basket"]["section"] == "soma"
+    assert net.external_biases["tonic_soma"]["L5_pyramidal"]["section"] == "soma"
+    assert np.isclose(net.external_biases["tonic_soma"]["L2_basket"]["t0"], 0.0)
+    assert np.isclose(net.external_biases["tonic_soma"]["L5_pyramidal"]["t0"], 0.0)
+    assert np.isclose(net.external_biases["tonic_soma"]["L2_basket"]["tstop"], 10.0)
+    assert np.isclose(net.external_biases["tonic_soma"]["L5_pyramidal"]["tstop"], 10.0)
+
+
+def test_tonic_biases_legacy_params_api():
+    """Test that the legacy 'params' API for tonic biases is still functional."""
+    hnn_core_root = op.dirname(hnn_core.__file__)
+
+    # default params
+    params_fname = op.join(hnn_core_root, "param", "default.json")
+    params = read_params(params_fname)
+
+    net = Network(params)
+    # add arbitrary local network connectivity to avoid simulation warning
+    net.add_connection(
+        src_gids="L2_pyramidal",
+        target_gids="L2_basket",
+        loc="soma",
+        receptor="ampa",
+        weight=1e-3,
+        delay=1.0,
+        lamtha=3.0,
+    )
+    with pytest.raises(ValueError, match="parameter may be missing"):
+        params["Itonic_T_L2Pyr_soma"] = 5.0
+        net = Network(params, add_drives_from_params=True)
+
+    params.update(
+        {
+            "N_pyr_x": 3,
+            "N_pyr_y": 3,
+            "N_trials": 1,
+            "dipole_smooth_win": 5,
+            "t_evprox_1": 5,
+            "t_evdist_1": 10,
+            "t_evprox_2": 20,
+            # tonic inputs
+            "Itonic_A_L2Pyr_soma": 1.0,
+            "Itonic_t0_L2Pyr_soma": 5.0,
+            "Itonic_T_L2Pyr_soma": 15.0,
+        }
+    )
+    # old API
+    net = Network(params, add_drives_from_params=True)
+    assert "tonic" in net.external_biases
+    assert "L2_pyramidal" in net.external_biases["tonic"]
+
+    # new API
+    net = Network(params)
+    good_amplitude = {"L2_pyramidal": 1.0, "L5_basket": 0.5}
+    net.add_tonic_bias(amplitude=good_amplitude)
+
+    assert "tonic" in net.external_biases
+    assert "L5_pyramidal" not in net.external_biases["tonic"]
+    assert np.isclose(net.external_biases["tonic"]["L2_pyramidal"]["t0"], 0)
+    with pytest.raises(
+        ValueError,
+        match=r"Bias named tonic already defined for",
+    ):
+        net.add_tonic_bias(amplitude=good_amplitude)
+
+
+def test_tonic_biases_validation():
+    """Test that erroneous inputs to tonic biases are caught."""
+    net = neymotin_2020_model()
+    good_amplitude = {"L2_pyramidal": 0.5, "L5_pyramidal": 1.0}
+
+    # Test that the rules about input LOGIC and types are enforced
+    # ----------------------------------------------------------------------------------
+    # This section is intended to check that our validation that arguments are formatted
+    # correctly, typed correctly, and that the logical relationships BETWEEN arguments
+    # are enforced (in all their many variants). The next section will check that the
+    # values of arguments are valid with respect to the network.
+    #
+    # Check amplitude argument
+    with pytest.raises(
+        TypeError, match="amplitude must be an instance of int, float, or dict"
+    ):
+        net.add_tonic_bias(amplitude="foo", gid=35)
+
+    # Check time arguments
+    with pytest.raises(ValueError, match="Duration of tonic input cannot be negative"):
+        net.add_tonic_bias(amplitude=good_amplitude, t0=5.0, tstop=4.0)
+    with pytest.raises(ValueError, match="End time of tonic input cannot be negative"):
+        net.add_tonic_bias(amplitude=good_amplitude, t0=5.0, tstop=-1.0)
+
+    # Check gid argument for logic and type rules
+    # If amplitude is a float, either gid or cell_type (deprecated) are now required
+    with pytest.raises(ValueError, match="`gid` must be specified"):
+        net.add_tonic_bias(amplitude=0.1, t0=5.0, tstop=6.0)
+    with pytest.raises(
+        TypeError, match="gid must be an instance of int, list, or dict"
+    ):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid="foo")
+
+    # When 'gid' is a single int, an 'amplitude' dict may only have one entry.
+    with pytest.raises(
+        ValueError,
+        match="When `amplitude` is a dictionary and `gid` is an int, "
+        "the dictionary must contain only one key-value pair",
+    ):
+        net.add_tonic_bias(amplitude=good_amplitude, gid=35)
+    # When both 'amplitude' and 'gid' are dicts, their keys must match.
+    with pytest.raises(ValueError, match="the keys of both dictionaries must match"):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L5_pyramidal": [170]})
+
+    # A gid dict value that is a string must be exactly 'all'.
+    with pytest.raises(ValueError, match="the only valid option is 'all'"):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": "foo"})
+
+    # A gid dict value must be an int, list, or the string 'all'.
+    with pytest.raises(
+        TypeError, match=r"gid.values\(\) must be an instance of int, list, or str"
+    ):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": 1.5})
+
+    # An empty 'gid' list raises an error that no biases can be defined.
+    with pytest.raises(
+        ValueError,
+        match="The provided 'gid' argument is empty, therefore no biases",
+    ):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid=[])
+
+    # An empty gid list for a cell type in a 'gid' dict warns that no biases have been
+    # defined for that cell type.
+    with pytest.raises(
+        ValueError,
+        match=(
+            "The provided 'gid' argument for cell type 'L2_pyramidal' is empty, "
+            "therefore no biases"
+        ),
+    ):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": []})
+
+    # Related tests for the deprecated cell_type argument
+    # -----------------------------------
+    with pytest.raises(
+        ValueError,
+        match=("When using the deprecated 'cell_type' argument, the 'gid'"),
+    ):
+        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
+            net.add_tonic_bias(
+                cell_type="L2_pyramidal",
+                gid=35,
+                bias_name="tonic_soma",
+                amplitude=3,
+                t0=10,
+                tstop=15,
+            )
+
+    with pytest.raises(
+        TypeError, match="amplitude must be an instance of float or int"
+    ):
+        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
+            net.add_tonic_bias(
+                cell_type="L5_pyramidal",
+                amplitude={"L2_pyramidal": 0.1},
+                t0=5.0,
+                tstop=6.0,
+            )
+
+    with pytest.raises(ValueError, match="Duration of tonic input cannot be negative"):
+        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
+            net.add_tonic_bias(cell_type="L2_pyramidal", amplitude=1, t0=5.0, tstop=4.0)
+
+    with pytest.raises(ValueError, match="End time of tonic input cannot be negative"):
+        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
+            net.add_tonic_bias(
+                cell_type="L2_pyramidal", amplitude=1.0, t0=5.0, tstop=-1.0
+            )
+
+    # Test that the checks of input VALUES are enforced
+    # ----------------------------------------------------------------------------------
+    # This section is intended to check that the values of arguments are valid with
+    # respect to the network.
+    #
+    # Test that the checks of bias_name are enforced
+    net_repeat = neymotin_2020_model()
+    net_repeat.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, bias_name="tonic")
+    with pytest.raises(
+        ValueError, match="Bias named tonic already defined for L2_pyramidal"
+    ):
+        net_repeat.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, bias_name="tonic")
+
+    # Test that the checks of section are enforced
+    with pytest.raises(ValueError, match="section 'apical_4' does not exist. Section"):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, section="apical_4")
+
+    # Test that the checks of cell type names are enforced
+    with pytest.raises(ValueError, match=r"Provided cell type must be one of"):
+        net.add_tonic_bias(amplitude={"name_nonexistent": 1.0}, t0=0.0, tstop=4.0)
+
+    with pytest.raises(ValueError, match=r"Provided cell type must be one of"):
+        with pytest.warns(DeprecationWarning, match=r"cell_type argument will be"):
+            net.add_tonic_bias(
+                cell_type="name_nonexistent", amplitude=1.0, t0=0.0, tstop=4.0
+            )
+    with pytest.raises(ValueError, match=r"Provided cell type must be one of"):
+        net.add_tonic_bias(
+            amplitude=1.0, gid={"name_nonexistent": [26]}, t0=0.0, tstop=4.0
+        )
+
+    # Test that the checks of gid input are enforced
+    # -----------------------------------------
+    # In the default network, gids 35, 36 are L2_pyramidal and gid 170 is L5_pyramidal.
+    #
+    # A gid outside the network's gid ranges is rejected.
+    with pytest.raises(
+        ValueError, match="Invalid gid '999', not found in Network.gid_ranges"
+    ):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": 999})
+
+    # An int gid whose cell type is absent from the 'amplitude' dict is rejected.
+    with pytest.raises(
+        ValueError,
+        match=(
+            "GID '170' is of cell type 'L5_pyramidal', but this cell type is not "
+            "present in the 'amplitude' dictionary."
+        ),
+    ):
+        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid=170)
+
+    # A gid must belong to the cell type it is keyed under in the 'gid' dict; gid 170
+    # is L5_pyramidal, not L2_pyramidal.
+    with pytest.raises(
+        ValueError,
+        match=(
+            "GID '170' belongs to cell type 'L5_pyramidal' instead of the "
+            "argument-provided cell type for this gid: 'L2_pyramidal'."
+        ),
+    ):
+        net.add_tonic_bias(amplitude=0.5, gid={"L2_pyramidal": 170})
+
+    # An 'amplitude' dict cannot name a cell type that no provided gid belongs to;
+    # here gids 35 and 36 are both L2_pyramidal, but 'amplitude' also names
+    # L5_pyramidal.
+    with pytest.raises(
+        ValueError,
+        match="'amplitude' dictionary contains cell types that are not present",
+    ):
+        net.add_tonic_bias(amplitude=good_amplitude, gid=[35, 36])
+
+
+def test_tonic_biases_gid_routing():
+    """Test routing and simulation of gids to cell types when biasing multiple cell types."""
 
     def _test_and_simulate_gid_case(
         gid_inputs,
@@ -1149,7 +1440,6 @@ def test_tonic_biases():
     # bias correctly and, when simulated, only that GID spikes.
     # ----------------------------------------------------------------------------------
     # We will test for all styles of `gid` input that produce this same routing
-    del net
     net = neymotin_2020_model()
     target_gid = 35
     cell_type = "L2_pyramidal"
@@ -1341,325 +1631,6 @@ def test_tonic_biases():
                 == net.gid_ranges[cell_type]
             ).all()
             del net, dpl
-
-
-def test_tonic_biases_legacy_params_api():
-    """Test that the legacy 'params' API for tonic biases is still functional."""
-    hnn_core_root = op.dirname(hnn_core.__file__)
-
-    # default params
-    params_fname = op.join(hnn_core_root, "param", "default.json")
-    params = read_params(params_fname)
-
-    net = Network(params)
-    # add arbitrary local network connectivity to avoid simulation warning
-    net.add_connection(
-        src_gids="L2_pyramidal",
-        target_gids="L2_basket",
-        loc="soma",
-        receptor="ampa",
-        weight=1e-3,
-        delay=1.0,
-        lamtha=3.0,
-    )
-    with pytest.raises(ValueError, match="parameter may be missing"):
-        params["Itonic_T_L2Pyr_soma"] = 5.0
-        net = Network(params, add_drives_from_params=True)
-
-    params.update(
-        {
-            "N_pyr_x": 3,
-            "N_pyr_y": 3,
-            "N_trials": 1,
-            "dipole_smooth_win": 5,
-            "t_evprox_1": 5,
-            "t_evdist_1": 10,
-            "t_evprox_2": 20,
-            # tonic inputs
-            "Itonic_A_L2Pyr_soma": 1.0,
-            "Itonic_t0_L2Pyr_soma": 5.0,
-            "Itonic_T_L2Pyr_soma": 15.0,
-        }
-    )
-    # old API
-    net = Network(params, add_drives_from_params=True)
-    assert "tonic" in net.external_biases
-    assert "L2_pyramidal" in net.external_biases["tonic"]
-
-    # new API
-    net = Network(params)
-    good_amplitude = {"L2_pyramidal": 1.0, "L5_basket": 0.5}
-    net.add_tonic_bias(amplitude=good_amplitude)
-
-    assert "tonic" in net.external_biases
-    assert "L5_pyramidal" not in net.external_biases["tonic"]
-    assert net.external_biases["tonic"]["L2_pyramidal"]["t0"] == 0
-    with pytest.raises(
-        ValueError,
-        match=r"Bias named tonic already defined for",
-    ):
-        net.add_tonic_bias(amplitude=good_amplitude)
-
-
-def test_tonic_biases_validation():
-    """Test that erroneous inputs to tonic biases are caught."""
-    net = neymotin_2020_model()
-    good_amplitude = {"L2_pyramidal": 0.5, "L5_pyramidal": 1.0}
-
-    # Test that the rules about input LOGIC and types are enforced
-    # ----------------------------------------------------------------------------------
-    # This section is intended to check that our validation that arguments are formatted
-    # correctly, typed correctly, and that the logical relationships BETWEEN arguments
-    # are enforced (in all their many variants). The next section will check that the
-    # values of arguments are valid with respect to the network.
-    #
-    # Check amplitude argument
-    with pytest.raises(
-        TypeError, match="amplitude must be an instance of int, float, or dict"
-    ):
-        net.add_tonic_bias(amplitude="foo", gid=35)
-
-    # Check time arguments
-    with pytest.raises(ValueError, match="Duration of tonic input cannot be negative"):
-        net.add_tonic_bias(amplitude=good_amplitude, t0=5.0, tstop=4.0)
-    with pytest.raises(ValueError, match="End time of tonic input cannot be negative"):
-        net.add_tonic_bias(amplitude=good_amplitude, t0=5.0, tstop=-1.0)
-
-    # Check gid argument for logic and type rules
-    # If amplitude is a float, either gid or cell_type (deprecated) are now required
-    with pytest.raises(ValueError, match="`gid` must be specified"):
-        net.add_tonic_bias(amplitude=0.1, t0=5.0, tstop=6.0)
-    with pytest.raises(
-        TypeError, match="gid must be an instance of int, list, or dict"
-    ):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid="foo")
-
-    # When 'gid' is a single int, an 'amplitude' dict may only have one entry.
-    with pytest.raises(
-        ValueError, match="the dictionary must contain only one key-value pair"
-    ):
-        net.add_tonic_bias(amplitude=good_amplitude, gid=35)
-    # When both 'amplitude' and 'gid' are dicts, their keys must match.
-    with pytest.raises(ValueError, match="the keys of both dictionaries must match"):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L5_pyramidal": [170]})
-
-    # A gid dict value that is a string must be exactly 'all'.
-    with pytest.raises(ValueError, match="the only valid option is 'all'"):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": "foo"})
-
-    # A gid dict value must be an int, list, or the string 'all'.
-    with pytest.raises(
-        TypeError, match=r"gid.values\(\) must be an instance of int, list, or str"
-    ):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": 1.5})
-
-    # An empty 'gid' list raises an error that no biases can be defined.
-    with pytest.raises(
-        ValueError,
-        match="The provided 'gid' argument is empty, therefore no biases",
-    ):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid=[])
-
-    # An empty gid list for a cell type in a 'gid' dict warns that no biases have been
-    # defined for that cell type.
-    with pytest.raises(
-        ValueError,
-        match=(
-            "The provided 'gid' argument for cell type 'L2_pyramidal' is empty, "
-            "therefore no biases"
-        ),
-    ):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": []})
-
-    # Related tests for the deprecated cell_type argument
-    # -----------------------------------
-    with pytest.raises(
-        ValueError,
-        match=("When using the deprecated 'cell_type' argument, the 'gid'"),
-    ):
-        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
-            net.add_tonic_bias(
-                cell_type="L2_pyramidal",
-                gid=35,
-                bias_name="tonic_soma",
-                amplitude=3,
-                t0=10,
-                tstop=15,
-            )
-
-    with pytest.raises(
-        TypeError, match="amplitude must be an instance of float or int"
-    ):
-        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
-            net.add_tonic_bias(
-                cell_type="L5_pyramidal",
-                amplitude={"L2_pyramidal": 0.1},
-                t0=5.0,
-                tstop=6.0,
-            )
-
-    with pytest.raises(ValueError, match="Duration of tonic input cannot be negative"):
-        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
-            net.add_tonic_bias(cell_type="L2_pyramidal", amplitude=1, t0=5.0, tstop=4.0)
-
-    with pytest.raises(ValueError, match="End time of tonic input cannot be negative"):
-        with pytest.warns(DeprecationWarning, match="cell_type argument will be"):
-            net.add_tonic_bias(
-                cell_type="L2_pyramidal", amplitude=1.0, t0=5.0, tstop=-1.0
-            )
-
-    # Test that the checks of input VALUES are enforced
-    # ----------------------------------------------------------------------------------
-    # This section is intended to check that the values of arguments are valid with
-    # respect to the network.
-    #
-    # Test that the checks of bias_name are enforced
-    net_repeat = neymotin_2020_model()
-    net_repeat.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, bias_name="tonic")
-    with pytest.raises(
-        ValueError, match="Bias named tonic already defined for L2_pyramidal"
-    ):
-        net_repeat.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, bias_name="tonic")
-
-    # Test that the checks of section are enforced
-    with pytest.raises(ValueError, match="section 'apical_4' does not exist. Section"):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, section="apical_4")
-
-    # Test that the checks of cell type names are enforced
-    with pytest.raises(ValueError, match=r"Provided cell type must be one of"):
-        net.add_tonic_bias(amplitude={"name_nonexistent": 1.0}, t0=0.0, tstop=4.0)
-
-    with pytest.raises(ValueError, match=r"Provided cell type must be one of"):
-        with pytest.warns(DeprecationWarning, match=r"cell_type argument will be"):
-            net.add_tonic_bias(
-                cell_type="name_nonexistent", amplitude=1.0, t0=0.0, tstop=4.0
-            )
-    with pytest.raises(ValueError, match=r"Provided cell type must be one of"):
-        net.add_tonic_bias(
-            amplitude=1.0, gid={"name_nonexistent": [26]}, t0=0.0, tstop=4.0
-        )
-
-    # Test that the checks of gid input are enforced
-    # -----------------------------------------
-    # In the default network, gids 35, 36 are L2_pyramidal and gid 170 is L5_pyramidal.
-    #
-    # A gid outside the network's gid ranges is rejected.
-    with pytest.raises(
-        ValueError, match="Invalid gid '999', not found in Network.gid_ranges"
-    ):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid={"L2_pyramidal": 999})
-
-    # An int gid whose cell type is absent from the 'amplitude' dict is rejected.
-    with pytest.raises(
-        ValueError,
-        match=(
-            "GID '170' is of cell type 'L5_pyramidal', but this cell type is not "
-            "present in the 'amplitude' dictionary."
-        ),
-    ):
-        net.add_tonic_bias(amplitude={"L2_pyramidal": 0.5}, gid=170)
-
-    # An 'amplitude' dict cannot name a cell type that no provided gid belongs to;
-    # here gids 35 and 36 are both L2_pyramidal, but 'amplitude' also names
-    # L5_pyramidal.
-    with pytest.raises(
-        ValueError,
-        match="'amplitude' dictionary contains cell types that are not present",
-    ):
-        net.add_tonic_bias(amplitude=good_amplitude, gid=[35, 36])
-
-    # A gid must belong to the cell type it is keyed under in the 'gid' dict; gid 170
-    # is L5_pyramidal, not L2_pyramidal.
-    with pytest.raises(
-        ValueError,
-        match=(
-            "GID '170' belongs to cell type 'L5_pyramidal' instead of the "
-            "argument-provided cell type for this gid: 'L2_pyramidal'."
-        ),
-    ):
-        net.add_tonic_bias(amplitude=0.5, gid={"L2_pyramidal": 170})
-
-
-def test_tonic_biases_gid_routing():
-    """Test routing of gids to cell types when biasing multiple cell types."""
-    amplitude = {"L2_pyramidal": 0.5, "L5_pyramidal": 1.0}
-
-    # gids given as a {cell_type: [gids]} dictionary are stored as given
-    # ----------------------------------------------------------------------------------
-    net = neymotin_2020_model()
-    l2_gids = list(net.gid_ranges["L2_pyramidal"])[:2]
-    l5_gids = list(net.gid_ranges["L5_pyramidal"])[:2]
-
-    net.add_tonic_bias(
-        amplitude=amplitude,
-        gid={"L2_pyramidal": l2_gids, "L5_pyramidal": l5_gids},
-    )
-    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
-    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == l5_gids
-
-    # a single gid in the dictionary is normalized to a list
-    net = neymotin_2020_model()
-    net.add_tonic_bias(
-        amplitude=amplitude,
-        gid={"L2_pyramidal": l2_gids[0], "L5_pyramidal": l5_gids[0]},
-    )
-    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == [l2_gids[0]]
-    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == [l5_gids[0]]
-
-    # a flat list spanning both cell types is routed to each cell type
-    # ----------------------------------------------------------------------------------
-    net = neymotin_2020_model()
-    net.add_tonic_bias(amplitude=amplitude, gid=l2_gids + l5_gids)
-    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
-    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == l5_gids
-
-    # a flat list covering only one cell type applies the bias to all cells of
-    # the uncovered cell type, with a warning for each cell type
-    # ----------------------------------------------------------------------------------
-    net = neymotin_2020_model()
-    with pytest.raises(
-        ValueError,
-        match="The 'amplitude' dictionary contains cell types that are not present",
-    ):
-        net.add_tonic_bias(amplitude=amplitude, gid=l2_gids)
-
-    # a gid belonging to neither biased cell type raises
-    # ----------------------------------------------------------------------------------
-    net = neymotin_2020_model()
-    basket_gid = list(net.gid_ranges["L2_basket"])[0]
-    with pytest.raises(
-        ValueError,
-        match=f"GID {basket_gid} is of cell type 'L2_basket', but this cell type is not",
-    ):
-        net.add_tonic_bias(amplitude=amplitude, gid=[basket_gid])
-
-    # a {cell_type: gids} key that is not among the biased cell types raises
-    # ----------------------------------------------------------------------------------
-    net = neymotin_2020_model()
-    with pytest.raises(
-        ValueError,
-        match="When `amplitude` is a dictionary and `gid` is a dictionary",
-    ):
-        net.add_tonic_bias(amplitude=amplitude, gid={"L2_basket": basket_gid})
-
-    # a single float amplitude with gids infers the cell type(s) from the gids
-    # ----------------------------------------------------------------------------------
-    net = neymotin_2020_model()
-    net.add_tonic_bias(amplitude=0.5, gid=l2_gids + l5_gids)
-    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == l2_gids
-    assert net.external_biases["tonic"]["L5_pyramidal"]["gid"] == l5_gids
-    assert net.external_biases["tonic"]["L2_pyramidal"]["amplitude"] == 0.5
-    assert net.external_biases["tonic"]["L5_pyramidal"]["amplitude"] == 0.5
-
-    # a single float amplitude with a single gid (int) also works
-    net = neymotin_2020_model()
-    net.add_tonic_bias(amplitude=0.5, gid=l2_gids[0])
-    assert net.external_biases["tonic"]["L2_pyramidal"]["gid"] == [l2_gids[0]]
-
-    # a float amplitude without gid raises
-    net = neymotin_2020_model()
-    with pytest.raises(ValueError, match="`gid` must be specified"):
-        net.add_tonic_bias(amplitude=0.5)
 
 
 def test_tonic_biases_docstring_examples():
