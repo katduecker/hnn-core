@@ -1740,11 +1740,8 @@ class Network:
                     list(set([self.gid_to_type(_gid) for _gid in gid]))
                 )
                 _check_gids_matching(gid, amplitude)
-                if max(gid) > (self._n_gids - 1):
-                    raise ValueError(
-                        f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
-                    )
-                elif len(gid) == 0:
+
+                if len(gid) == 0:
                     warnings.warn(
                         "The provided 'gid' argument is empty, therefore no "
                         "biases have been defined and no action taken.",
@@ -1752,6 +1749,10 @@ class Network:
                         stacklevel=1,
                     )
                     return
+                elif max(gid) > (self._n_gids - 1):
+                    raise ValueError(
+                        f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
+                    )
                 elif isinstance(amplitude, dict):
                     gid_detected_cell_types = set(
                         [self.gid_to_type(_gid) for _gid in gid]
@@ -1795,13 +1796,8 @@ class Network:
 
                     elif isinstance(gid_value, list):
                         _check_gids_matching(gid_value, amplitude, input_cell_type)
-                        if max(gid_value) > (self._n_gids - 1):
-                            raise ValueError(
-                                f"gid {max(gid_value)} is invalid; must be less than "
-                                f"{self._n_gids}"
-                            )
 
-                        elif len(gid_value) == 0:
+                        if len(gid_value) == 0:
                             warnings.warn(
                                 f"The provided 'gid' argument for cell type "
                                 f"'{input_cell_type}' is empty, therefore no biases have "
@@ -1811,6 +1807,11 @@ class Network:
                                 stacklevel=1,
                             )
                             continue
+                        elif max(gid_value) > (self._n_gids - 1):
+                            raise ValueError(
+                                f"gid {max(gid_value)} is invalid; must be less than "
+                                f"{self._n_gids}"
+                            )
 
                     elif isinstance(gid_value, str):
                         # Whether GIDs match their celltype does not need to be
