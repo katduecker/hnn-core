@@ -1653,6 +1653,8 @@ class Network:
             for _gid in gids_to_check:
                 _gid_type = self.gid_to_type(_gid)
                 if _gid_type is None:
+                    # Note: this checks BOTH for if _gid simply out of bounds OR its
+                    # cell_type is invalid
                     raise ValueError(
                         f"Invalid gid {_gid}; not found in Network.gid_ranges: "
                         f"({self.gid_ranges})."
@@ -1721,11 +1723,7 @@ class Network:
                 # ----------------------------------------------------------------------
                 _check_cell_types_validity([self.gid_to_type(gid)])
                 _check_gids_matching([gid], amplitude)
-                if gid > (self._n_gids - 1):
-                    raise ValueError(
-                        f"gid {gid} is invalid; must be less than {self._n_gids}"
-                    )
-                elif isinstance(amplitude, dict):
+                if isinstance(amplitude, dict):
                     if len(amplitude.keys()) > 1:
                         raise ValueError(
                             "When `amplitude` is a dictionary and `gid` is an int, "
@@ -1749,10 +1747,6 @@ class Network:
                         stacklevel=1,
                     )
                     return
-                elif max(gid) > (self._n_gids - 1):
-                    raise ValueError(
-                        f"gid {max(gid)} is invalid; must be less than {self._n_gids}"
-                    )
                 elif isinstance(amplitude, dict):
                     gid_detected_cell_types = set(
                         [self.gid_to_type(_gid) for _gid in gid]
@@ -1789,10 +1783,6 @@ class Network:
 
                     if isinstance(gid_value, int):
                         _check_gids_matching([gid_value], amplitude, input_cell_type)
-                        if gid_value > (self._n_gids - 1):
-                            raise ValueError(
-                                f"gid {gid_value} is invalid; must be less than {self._n_gids}"
-                            )
 
                     elif isinstance(gid_value, list):
                         _check_gids_matching(gid_value, amplitude, input_cell_type)
@@ -1807,11 +1797,6 @@ class Network:
                                 stacklevel=1,
                             )
                             continue
-                        elif max(gid_value) > (self._n_gids - 1):
-                            raise ValueError(
-                                f"gid {max(gid_value)} is invalid; must be less than "
-                                f"{self._n_gids}"
-                            )
 
                     elif isinstance(gid_value, str):
                         # Whether GIDs match their celltype does not need to be
@@ -1821,12 +1806,6 @@ class Network:
                                 "When specifying a cell type's gid value as a string, "
                                 "the only valid option is 'all'. "
                             )
-                    else:
-                        raise ValueError(
-                            f"Invalid gid value {gid_value} for cell type "
-                            f"{input_cell_type}. Value must must be an int, list of "
-                            "ints, or the string 'all'."
-                        )
 
         # Validate the time arguments:
         # This is done AFTER all the above checks so that the `cell_type` argument
