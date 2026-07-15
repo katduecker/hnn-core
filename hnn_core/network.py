@@ -1674,9 +1674,6 @@ class Network:
         # Validate the argument logic, across ALL "amplitude-cell_type-gid" variants
         # ------------------------------------------------------------------------------
         _validate_type(amplitude, (int, float, dict), "amplitude")
-        if isinstance(amplitude, dict):
-            _check_cell_types_validity(list(amplitude.keys()))
-
         if cell_type is not None:
             # Deprecated functionality: single "cell_type" and single "amplitude".
             #
@@ -1717,6 +1714,9 @@ class Network:
 
             if gid is not None:
                 _validate_type(gid, (int, list, dict), "gid")
+
+            if isinstance(amplitude, dict):
+                _check_cell_types_validity(list(amplitude.keys()))
 
             if isinstance(gid, int):
                 # Checks for when gid is an int
@@ -1785,15 +1785,11 @@ class Network:
                         _check_gids_matching(gid_value, amplitude, input_cell_type)
 
                         if len(gid_value) == 0:
-                            warnings.warn(
+                            raise ValueError(
                                 f"The provided 'gid' argument for cell type "
-                                f"'{input_cell_type}' is empty, therefore no biases have "
-                                f"been defined for this cell type and no action "
-                                f"taken.",
-                                UserWarning,
-                                stacklevel=1,
+                                f"'{input_cell_type}' is empty, therefore no biases "
+                                "can be defined. Please check your 'gid' argument."
                             )
-                            continue
 
                     elif isinstance(gid_value, str):
                         # Whether GIDs match their celltype does not need to be
