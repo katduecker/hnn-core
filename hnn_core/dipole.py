@@ -108,6 +108,12 @@ def simulate_dipole(
         for cell_type, bias_cell_type in bias.items():
             if bias_cell_type["tstop"] is None:
                 bias_cell_type["tstop"] = tstop
+            # This check is also performed at Network.add_tonic_bias time, but if the
+            # user does not specify tstop at that time, then tstop is not known until
+            # simulation time, so we need to check it again here.
+            duration = bias_cell_type["tstop"] - bias_cell_type["t0"]
+            if duration < 0.0:
+                raise ValueError("Duration of tonic input cannot be negative")
 
     if bsl_cor is None:
         bsl_cor = "jones"
