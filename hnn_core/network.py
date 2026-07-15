@@ -1822,9 +1822,9 @@ class Network:
             Required 'amplitude' argument value as passed into
             ``Network.add_tonic_bias``.
         cell_type : str
-            The 'cell_type' argument value as passed into ``Network.add_tonic_bias``.
+            The ``cell_type`` argument value as passed into ``Network.add_tonic_bias``.
         gid : int | list | dict
-            The 'gid' argument value as passed into ``Network.add_tonic_bias``.
+            The ``gid`` argument value as passed into ``Network.add_tonic_bias``.
 
         Returns
         -------
@@ -1857,9 +1857,9 @@ class Network:
         """Resolve the ``gid`` argument of a tonic bias into a per-cell-type map.
 
         This routes every variant of the provided ``gid`` argument for
-        :meth:`Network.add_tonic_bias` into a dictionary mapping every biased cell type
-        to a list of gids of that type. This is performed after validation, so we can
-        assume that all relationships between the arguments are valid.
+        :meth:``Network.add_tonic_bias`` into a dictionary mapping every biased cell
+        type to a list of gids of that type. This is performed after validation, so we
+        can assume that all relationships between the arguments are valid.
 
         Parameters
         ----------
@@ -1868,7 +1868,7 @@ class Network:
             all the cell types we are interested in and the values are their
             corresponding amplitude values.
         gid : int | list | dict
-            The 'gid' argument value as passed into ``Network.add_tonic_bias``.
+            The ``gid`` argument value as passed into ``Network.add_tonic_bias``.
             Inside this normalize function, this is a required parameter, since it
             should inherit the default from ``Network.add_tonic_bias``.
 
@@ -1933,7 +1933,7 @@ class Network:
         ----------
         amplitude : float
             The amplitude of the tonic input (in nA) applied to the specified
-            `cell_type`.
+            ``cell_type``.
         cell_type : str
             The cell type to which the bias is applied.
         section : str
@@ -1947,7 +1947,7 @@ class Network:
             The end time of the tonic input in milliseconds. If None, the bias
             continues until the end of the simulation.
         gid : list
-            The a list of gid(s) of `cell_type` to which the bias is applied.
+            The a list of gid(s) of ``cell_type`` to which the bias is applied.
         """
         cell_type_bias = {
             "amplitude": amplitude,
@@ -1976,51 +1976,61 @@ class Network:
 
         Parameters
         ----------
-        amplitude: dict | int | float
+        amplitude : dict | int | float
             Required parameter. All amplitudes should be given in units of nA.
+
             - If given as a dictionary, keys should be cell type names (as in
               ``Network.cell_types``) and values should be the amplitude of the tonic
-              input for that cell type as a float. An example of valid dictionary inputs
-              is:
+              input for that cell type as a `float`. An example of a valid dictionary
+              input is:
+
               ``{'L2_pyramidal': 1.0, 'L5_pyramidal': 2.0}``
-            - If given as an int or float, you must also provide the `gid` argument. In
-              this case, the amplitude is applied to all cells indicated by the `gid`
-              argument.
+
+            - If given as an `int` or `float`, you must also provide the ``gid``
+              argument. In this case, the amplitude is applied to all cells indicated by
+              the ``gid`` argument.
+
         bias_name : str, default="tonic"
             The name of the bias.
         gid : int | list | dict, optional
             Optionally specify gid(s) of cells to which the tonic bias should be
-            applied. This must be specified if `amplitude` is an int or float. May be
-            given as:
+            applied. This must be specified if ``amplitude`` is an `int` or `float`. May
+            be given as:
+
             - a single gid (`int`) or a list of gids (`list` of `int`).
               The tonic bias is connected to the provided gids, regardless of which cell
               type they belong to.
+
             - a dictionary mapping cell type to gid(s). If given as a dictionary, keys
               should be cell type names (as in ``Network.cell_types``). Values should be
               a single gid (`int`), a list of gids (`list` of `int`), or the string
               ``'all'``. Each gid must belong to the cell type it is mapped to or else
               an error will be raised. Examples of valid dictionary inputs are:
+
               ``{'L5_pyramidal': 35}``
+
               ``{'L2_pyramidal': 5, 'L5_pyramidal': 35}``
+
               ``{'L2_pyramidal': [5, 6], 'L5_pyramidal': 35, 'L5_basket': 'all'}``
+
         section : str, default="soma"
-            name of cell section the bias should be applied to.
+            Name of cell section the bias should be applied to.
             See ``Network.cell_types[cell_type].sections.keys()``
         t0 : float, default=0
             The start time of tonic input (in ms), defaulting to the beginning of
             simulation. This value will be applied to all the tonic biases created by
             this function call, regardless of if multiple cell types are specified using
-            either `amplitude` or `gid`.
+            either ``amplitude`` or ``gid``.
         tstop : float, optional
             The end time of tonic input (in ms), defaulting to the end of the
             simulation. This value will be applied to all the tonic biases created by
             this function call, regardless of if multiple cell types are specified using
-            either `amplitude` or `gid`.
+            either ``amplitude`` or ``gid``.
         cell_type : str, optional
             DEPRECATED. The name of the cell type to add a tonic input. Valid inputs are
-            those listed in `Network.cell_types`. When supplied, the `amplitude` keyword
-            must be provided as a float. This argument will be removed in future
-            releases.
+            those listed in ``Network.cell_types``. When supplied, the ``amplitude``
+            keyword must be provided as a `float`. This argument will be removed in
+            future releases.
 
         Examples
         --------
@@ -2029,18 +2039,18 @@ class Network:
         >>> net.add_tonic_bias(amplitude={'L2_pyramidal': 1.0, 'L5_pyramidal': 2.0})
 
         Apply a single amplitude to a single cell, specified by providing that cell's
-        GID to `gid` as an int:
+        GID to ``gid`` as an `int`:
 
         >>> net.add_tonic_bias(amplitude=1.0, gid=5)
 
-        Apply a single amplitude to several cells, specified by `gid` as a list of ints,
-        regardless of the cell type(s) they belong to (this will NOT check whether the
-        gids belong to the same cell type):
+        Apply a single amplitude to several cells, specified by ``gid`` as a `list` of
+        `int`, regardless of the cell type(s) they belong to (this will NOT check
+        whether the gids belong to the same cell type):
 
         >>> net.add_tonic_bias(amplitude=1.0, gid=[5, 6, 35])
 
-        Apply a single amplitude to several cells, specified by `gid` as a dictionary of
-        per-cell-type GIDs (this WILL check whether the gids belong to the cell type
+        Apply a single amplitude to several cells, specified by ``gid`` as a dictionary
+        of per-cell-type GIDs (this WILL check whether the gids belong to the cell type
         they are mapped to):
 
         >>> net.add_tonic_bias(
@@ -2049,14 +2059,14 @@ class Network:
         ... )
 
         Apply per-cell-type amplitudes, restricting each to specific gids using a
-        dictionary for `gid`:
+        dictionary for ``gid``:
 
         >>> net.add_tonic_bias(
         ...     amplitude={'L2_pyramidal': 1.0, 'L5_pyramidal': 2.0},
         ...     gid={'L2_pyramidal': [5, 6], 'L5_pyramidal': 35},
         ... )
 
-        Apply per-cell-type amplitudes, using the string ``'all'`` in the `gid`
+        Apply per-cell-type amplitudes, using the string ``'all'`` in the ``gid``
         dictionary to apply the bias to every cell of that type:
 
         >>> net.add_tonic_bias(
