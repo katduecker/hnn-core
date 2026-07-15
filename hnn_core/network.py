@@ -1656,19 +1656,19 @@ class Network:
                     # Note: this checks BOTH for if _gid simply out of bounds OR its
                     # cell_type is invalid
                     raise ValueError(
-                        f"Invalid gid {_gid}; not found in Network.gid_ranges: "
-                        f"({self.gid_ranges})."
+                        f"Invalid gid '{_gid}', not found in Network.gid_ranges: "
+                        f"'{self.gid_ranges}'."
                     )
                 elif isinstance(amplitude, dict) and _gid_type not in amplitude.keys():
                     raise ValueError(
-                        f"GID {_gid} is of cell type '{_gid_type}', but this cell "
+                        f"GID '{_gid}' is of cell type '{_gid_type}', but this cell "
                         "type is not present in the 'amplitude' dictionary."
                     )
                 elif input_cell_type is not None and _gid_type != input_cell_type:
                     raise ValueError(
-                        f"GID {_gid} belongs to cell type '{_gid_type}' instead of "
-                        "the argument-provided cell type for this gid "
-                        f"({input_cell_type})."
+                        f"GID '{_gid}' belongs to cell type '{_gid_type}' instead of "
+                        "the argument-provided cell type for this gid: "
+                        f"'{input_cell_type}'."
                     )
 
         # Validate the argument logic, across ALL "amplitude-cell_type-gid" variants
