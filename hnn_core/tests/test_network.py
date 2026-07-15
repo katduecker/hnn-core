@@ -1138,12 +1138,10 @@ def test_tonic_biases():
 
     with pytest.raises(ValueError, match="Duration of tonic input cannot be negative"):
         net.add_tonic_bias(amplitude=tonic_bias_2, t0=5.0, tstop=4.0)
-        simulate_dipole(net, tstop=20.0)
     net.external_biases = dict()
 
     with pytest.raises(ValueError, match="End time of tonic input cannot be negative"):
         net.add_tonic_bias(amplitude=tonic_bias_2, t0=5.0, tstop=-1.0)
-        simulate_dipole(net, tstop=5.0)
     net.external_biases = dict()
 
     with pytest.raises(ValueError, match="parameter may be missing"):
@@ -1178,7 +1176,6 @@ def test_tonic_biases():
             DeprecationWarning, match=r"cell_type argument will be deprecated"
         ):
             net.add_tonic_bias(cell_type="L2_pyramidal", amplitude=1, t0=5.0, tstop=4.0)
-            simulate_dipole(net, tstop=20.0)
     net.external_biases = dict()
 
     with pytest.raises(ValueError, match="End time of tonic input cannot be negative"):
@@ -1188,7 +1185,6 @@ def test_tonic_biases():
             net.add_tonic_bias(
                 cell_type="L2_pyramidal", amplitude=1.0, t0=5.0, tstop=-1.0
             )
-            simulate_dipole(net, tstop=5.0)
 
     params.update(
         {

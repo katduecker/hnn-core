@@ -1669,7 +1669,7 @@ class Network:
                         f"({input_cell_type})."
                     )
 
-        # Validate the argument logic, across ALL variants
+        # Validate the argument logic, across ALL "amplitude-cell_type-gid" variants
         # ------------------------------------------------------------------------------
         _validate_type(amplitude, (int, float, dict), "amplitude")
         if isinstance(amplitude, dict):
@@ -1826,6 +1826,15 @@ class Network:
                             f"{input_cell_type}. Value must must be an int, list of "
                             "ints, or the string 'all'."
                         )
+
+        # Validate the time arguments:
+        # This is done AFTER all the above checks so that the `cell_type` argument
+        # deprecation warning is always raised first.
+        if tstop is not None:
+            if tstop < 0.0:
+                raise ValueError("End time of tonic input cannot be negative")
+            elif (tstop - t0) < 0.0:
+                raise ValueError("Duration of tonic input cannot be negative")
 
     def _normalize_bias_amplitude(self, amplitude, cell_type, gid):
         """Resolve the ``amplitude`` argument of a tonic bias into a per-cell-type map.

@@ -108,11 +108,6 @@ def simulate_dipole(
         for cell_type, bias_cell_type in bias.items():
             if bias_cell_type["tstop"] is None:
                 bias_cell_type["tstop"] = tstop
-            if bias_cell_type["tstop"] < 0.0:
-                raise ValueError("End time of tonic input cannot be negative")
-            duration = bias_cell_type["tstop"] - bias_cell_type["t0"]
-            if duration < 0.0:
-                raise ValueError("Duration of tonic input cannot be negative")
 
     if bsl_cor is None:
         bsl_cor = "jones"
