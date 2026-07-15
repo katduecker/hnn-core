@@ -1740,13 +1740,10 @@ class Network:
                 _check_gids_matching(gid, amplitude)
 
                 if len(gid) == 0:
-                    warnings.warn(
+                    raise ValueError(
                         "The provided 'gid' argument is empty, therefore no "
-                        "biases have been defined and no action taken.",
-                        UserWarning,
-                        stacklevel=1,
+                        "biases can be defined."
                     )
-                    return
                 elif isinstance(amplitude, dict):
                     gid_detected_cell_types = set(
                         [self.gid_to_type(_gid) for _gid in gid]
