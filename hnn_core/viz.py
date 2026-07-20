@@ -904,6 +904,111 @@ def plot_spikes_raster(
     return ax.get_figure()
 
 
+def plot_firing_rate_time(
+    fr_cell_types, times, ax, show, colors, show_legend, **kwargs
+):
+    """Plot time course of firing rates
+
+    Parameters
+    ----------
+    fr_cell_types : Dict
+        Firing rate over time for each cell type, output of CellResponse.rate_over_time.
+        Must have the same len as ax.
+    times : np.array
+        Time vector (in ms)
+    ax : instance of matplotlib axis | None
+        An axis object from matplotlib. If None, a new figure is created.
+        Must have the same len as fr_cell_types.
+    show : bool
+        If True, show the figure.
+    colors : list of str | None
+        Optional custom colors to plot. Default will use the colors defined in cell metadata.
+    show_legend : bool
+        If True, show the legend with colors for cell types
+    **kwargs : option to include xlabel, ylabel, xticks, yticks, sharey, sharex, xlim, ylim for publication-ready figures.
+
+    Returns
+    -------
+    fig : instance of matplotlib Figure
+        The matplotlib figure object.
+    """
+
+    sharey = kwargs.get("sharey", False)
+    sharex = kwargs.get("sharex", False)
+    # create ax
+    if ax is None:
+        _, ax = plt.subplots(
+            len(fr_cell_types), 1, constrained_layout=True, sharey=sharey, sharex=sharex
+        )
+
+    # ensure ax is iterable
+
+    # if ax is subplot axis
+    if type(ax) is matplotlib.axes._axes.Axes and len(fr_cell_types) == 1:
+        ax = [ax]
+    elif type(ax) is matplotlib.axes._axes.Axes and len(fr_cell_types) > 1:
+        raise ValueError(
+            f"ax and cell_types must have the same len but have len 1 and {len(fr_cell_types)}."
+            " Hint: Define one subplot panel per cell type."
+        )
+
+    # if ax is multiple subplot axes
+    elif type(ax) is np.ndarray and len(ax) != len(fr_cell_types):
+        if ax.size == len(fr_cell_types):
+            raise ValueError(
+                f"ax and fr_cell_types must have the same len but have len {len(ax)} and {len(fr_cell_types)}."
+                " Use ax.flatten() to plot each cell type in one subplot."
+            )
+        else:
+            raise ValueError(
+                f"ax and cell_types must have the same len but have len {len(ax)} and {len(fr_cell_types)}."
+                " Hint: Define one subplot panel per cell type."
+            )
+
+    xticks = kwargs.get("xticks", None)
+    yticks = kwargs.get("yticks", None)
+    xlim = kwargs.get("xlim", (times[0], times[-1]))
+    ylim = kwargs.get("ylim", None)
+    for c, cell_type in enumerate(fr_cell_types):
+        ax[c].plot(
+            times,
+            np.mean(fr_cell_types[cell_type], axis=0),
+            color=colors[cell_type],
+            label=cell_type,
+        )
+        ax[c].fill_between(
+            times,
+            np.mean(fr_cell_types[cell_type], axis=0)
+            - np.std(fr_cell_types[cell_type], axis=0),
+            np.mean(fr_cell_types[cell_type], axis=0)
+            + np.std(fr_cell_types[cell_type], axis=0),
+            color=colors[cell_type],
+            alpha=0.4,
+            rasterized=True,
+        )
+        ax[c].set_xlim(xlim)
+
+        if xticks is not None:
+            ax[c].set_xticks(xticks)
+
+        ax[c].set_ylim(ylim)
+        if yticks is not None:
+            ax[c].set_yticks(yticks)
+        ax[c].spines["top"].set_visible(False)
+        ax[c].spines["right"].set_visible(False)
+        if show_legend:
+            ax[c].legend(loc="upper right")
+
+    ylabel = kwargs.get("ylabel", "firing rate (Hz)")
+    xlabel = kwargs.get("xlabel", "time (ms)")
+    ax[c].set_ylabel(ylabel)
+    ax[c].set_xlabel(xlabel)
+
+    plt_show(show)
+
+    return ax
+
+
 def plot_cells(net, ax=None, show=True, colors=None, markers=None):
     """Plot the cells using Network.pos_dict.
 
