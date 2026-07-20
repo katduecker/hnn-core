@@ -321,6 +321,7 @@ class CellResponse(object):
         marker_size=5.0,
         dpl=None,
         overlay_dipoles=False,
+        **kwargs,
     ):
         """Plot the aggregate spiking activity according to cell type.
 
@@ -365,6 +366,7 @@ class CellResponse(object):
             marker_size=marker_size,
             dpl=dpl,
             overlay_dipoles=overlay_dipoles,
+            **kwargs,
         )
 
     def plot_spikes_hist(

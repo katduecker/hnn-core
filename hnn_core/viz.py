@@ -656,6 +656,7 @@ def plot_spikes_raster(
     marker_size=1.0,
     dpl=None,
     overlay_dipoles=False,
+    **kwargs,
 ):
     """Plot the aggregate spiking activity according to cell type.
 
@@ -685,6 +686,8 @@ def plot_spikes_raster(
     overlay_dipoles : bool
         If True, overlay the layer-specific dipole data on the
         raster plot
+    kwargs : option to include xticks, yticks, xlabel, ylabel and title for publication-ready figures.
+
 
     Returns
     -------
@@ -785,7 +788,7 @@ def plot_spikes_raster(
         for gid in cell_type_gids:
             gid_time = spike_times[spike_gids == gid]
             cell_type_times.append(gid_time)
-            cell_type_ypos.append(-gid)
+            cell_type_ypos.append(gid)
 
         if cell_type_times:
             events.append(
@@ -804,6 +807,9 @@ def plot_spikes_raster(
                     [-1], lineoffsets=[-1], color=color, label=cell_type, linelengths=1
                 )
             )
+
+    # invert y axis
+    ax.invert_yaxis()
 
     # Overlay dipoles on raster plot
     if overlay_dipoles:
@@ -825,21 +831,26 @@ def plot_spikes_raster(
         dipole_times = dpl[0].times
 
         # Scale dipole to fit the spike raster plot
-        raster_yrange = ax.get_yticks()
-        raster_min = min(raster_yrange)
-        raster_midpoint = round((raster_min / 2), 0)
-        raster_quarterpoint = round((raster_min / 4), 0)
+        raster_max = max(cell_type_gids)
+        print(f"raster max {raster_max}")
+        raster_midpoint = round((raster_max / 2), 0)
+        raster_quarterpoint = round((raster_max / 4), 0)
 
         # Scale down by .95 until the dipoles fit within the appropriate area
-        while (
-            max(max(l5_dipole), max(l2_dipole)) - min(min(l5_dipole), min(l2_dipole))
-        ) > abs(raster_midpoint):
+        # separately for L5 and L2
+        while (max(l5_dipole) - min(l5_dipole)) > abs(raster_midpoint):
             l5_dipole = l5_dipole * 0.95
+
+        while (max(l2_dipole) - min(l2_dipole)) > abs(raster_midpoint):
             l2_dipole = l2_dipole * 0.95
 
         # Shift the dipole positions to overlay the correct cell types
-        l2_dipole = l2_dipole - abs(raster_midpoint) + abs(raster_quarterpoint)
-        l5_dipole = l5_dipole - abs(raster_midpoint) - abs(raster_quarterpoint)
+        l2_dipole = -l2_dipole + abs(raster_quarterpoint)
+        # if abs(min(l5_dipole)) > abs(max(l5_dipole)):
+        #     print('min larger max')
+        l5_dipole = -l5_dipole + abs(raster_midpoint) + abs(raster_quarterpoint)
+        # if abs(min(l5_dipole)) < abs(max(l5_dipole)):
+        # l5_dipole = -l5_dipole + abs(raster_midpoint) + abs(raster_quarterpoint)
 
         # Draw the dipole plots
         (l2_line,) = ax.plot(
@@ -880,19 +891,26 @@ def plot_spikes_raster(
     else:
         ax.add_artist(spike_legend)
 
-    # set axis labels
-    ax.set_xlabel("Time (ms)")
-    ax.set_ylabel("Cell ID")
+    # set y-axis ticks and tick labels
+    yticks = kwargs.get("yticks", None)
+    if yticks is not None:
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticks)
+    else:
+        ax.tick_params(axis="y", length=0)
 
-    # hide y-axis ticks and tick labels
-    ax.set_yticklabels([])
-    ax.tick_params(axis="y", length=0)
+    ylabel = kwargs.get("ylabel", "Cell ID")
+    ax.set_ylabel(ylabel)
+    xlabel = kwargs.get("xlabel", "Time (ms)")
+    ax.set_xlabel(xlabel)
 
     # add title
     if overlay_dipoles:
-        ax.set_title("Raster Plot with Layer-Specific Dipole Overlays")
+        title = kwargs.get("title", "Raster Plot with Layer-Specific Dipole Overlays")
     else:
-        ax.set_title("Raster Plot")
+        title = kwargs.get("title", "Raster Plot")
+
+    ax.set_title(title)
 
     if len(cell_response.times) > 0:
         ax.set_xlim(left=0, right=cell_response.times[-1])
@@ -900,6 +918,9 @@ def plot_spikes_raster(
         ax.set_xlim(left=0)
     ax.set_xlim(left=0)
 
+    xticks = kwargs.get("xticks", None)
+    if xticks is not None:
+        ax.set_xticks(xticks)
     plt_show(show)
     return ax.get_figure()
 
