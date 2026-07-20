@@ -832,7 +832,6 @@ def plot_spikes_raster(
 
         # Scale dipole to fit the spike raster plot
         raster_max = max(cell_type_gids)
-        print(f"raster max {raster_max}")
         raster_midpoint = round((raster_max / 2), 0)
         raster_quarterpoint = round((raster_max / 4), 0)
 
