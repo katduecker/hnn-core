@@ -649,24 +649,24 @@ class Network:
     ):
         """Set relative positions of cells arranged in a square grid
 
-        Note that it is possible to change only a subset of the parameters
-        (the default value of each is None, which implies no change).
+         Note that it is possible to change only a subset of the parameters
+         (the default value of each is None, which implies no change).
 
-        Parameters
-        ----------
-        inplane_distance : float
-            The in plane-distance (in um) between pyramidal cell somas in the
-            square grid. Note that this parameter does not affect the amplitude
-            of the dipole moment.
+         Parameters
+         ----------
+         inplane_distance : float
+             The in plane-distance (in um) between pyramidal cell somas in the
+             square grid. Note that this parameter does not affect the amplitude
+             of the dipole moment.
+         layer_separation : float
+             The separation of pyramidal cell soma layers 2/3 and 5. Note that
         layer_separation : float
             The separation of pyramidal cell soma layers 2/3 and 5. Note that
-       layer_separation : float
-           The separation of pyramidal cell soma layers 2/3 and 5. Note that
-           this parameter does not affect the amplitude of the dipole moment.
-       Note
-       ----
-       If a `pos_dict` is already provided (i.e. manually specifying cell positions when creating the Network), then this function will shift the existing positions. If there is no pre-defined `pos_dict`, then a `pos_dict` is created where cells are positioned on a grid.
-           
+            this parameter does not affect the amplitude of the dipole moment.
+        Note
+        ----
+        If a `pos_dict` is already provided (i.e. manually specifying cell positions when creating the Network), then this function will shift the existing positions. If there is no pre-defined `pos_dict`, then a `pos_dict` is created where cells are positioned on a grid.
+
         """
         if inplane_distance is None:
             inplane_distance = self._inplane_distance
