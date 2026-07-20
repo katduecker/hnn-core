@@ -1187,7 +1187,7 @@ class Network:
         synaptic_delays=0.1,
         space_constant=3.0,
         probability=1.0,
-        conn_seed=None,
+        conn_seed=3,
     ):
         """Add an external drive from explicitly defined spike trains.
 
