@@ -116,8 +116,8 @@ def simulate_dipole(
 
     if bsl_cor is None:
         bsl_cor = "jones"
-    elif bsl_cor not in {"jones", "duecker"}:
-        raise ValueError("'bsl_cor' must be 'jones' or 'duecker'")
+    elif bsl_cor not in {"jones", "duecker", "none"}:
+        raise ValueError("'bsl_cor' must be 'jones', 'duecker' or 'none'")
 
     net._instantiate_drives(n_trials=n_trials, tstop=tstop)
     net._reset_rec_arrays()

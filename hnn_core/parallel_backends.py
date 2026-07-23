@@ -94,6 +94,10 @@ def _gather_trial_data(sim_data, net, n_trials, postproc, bsl_cor="jones"):
                 print("Applying Duecker model baseline correction", flush=True)
             dpl._baseline_renormalize_dueckerET()
 
+        if bsl_cor == "none":
+            print("No baseline correction applied.", flush=True)
+
+
         if postproc:
             window_len = net._params["dipole_smooth_win"]  # specified in ms
             fctr = net._params["dipole_scalefctr"]
