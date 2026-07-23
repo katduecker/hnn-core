@@ -894,7 +894,7 @@ class Network:
         warnings.warn(
             "`Network.set_cell_positions` will be deprecated in favor of "
             "`Network.reset_cell_positions` in future releases.",
-            DeprecationWarning,
+            FutureWarning,
             stacklevel=1,
         )
         self.reset_cell_positions(
