@@ -9,7 +9,9 @@ from warnings import warn
 
 import numpy as np
 
-from .viz import plot_spikes_hist, plot_spikes_raster
+from .viz import plot_spikes_hist, plot_spikes_raster, plot_firing_rate_time
+from .externals.mne import _validate_type
+import matplotlib.pyplot as plt
 
 
 class CellResponse(object):
@@ -79,7 +81,7 @@ class CellResponse(object):
     plot(ax=None, show=True)
         Plot and return a matplotlib Figure object showing the
         aggregate network spiking activity according to cell type.
-    mean_rates(tstart, tstop, gid_ranges, mean_type='all')
+    mean_rates(tstart, tstop, gid_ranges=None, mean_type='all')
         Calculate mean firing rate for each cell type. Specify
         averaging method with mean_type argument.
     write(fname)
@@ -243,7 +245,34 @@ class CellResponse(object):
             spike_types += [list(spike_types_trial)]
         self._spike_types = spike_types
 
-    def mean_rates(self, tstart, tstop, gid_ranges, mean_type="all"):
+    def _gids_from_spikes(self, cell_type):
+        """Sorted unique gids of ``cell_type`` that fired at least once.
+
+        Derived from the recorded spikes, pooled across all trials so a cell
+        that is silent in one trial still counts if it fires in another. Note
+        that cells which never spike in any trial cannot be recovered this way.
+
+        Parameters
+        ----------
+        cell_type : str
+            Cell type name, e.g. 'L5_pyramidal'.
+
+        Returns
+        -------
+        gids : np.ndarray
+            Sorted unique gids of ``cell_type`` observed in the spike record.
+        """
+        gids, types = [], []
+        for trial_gids, trial_types in zip(self._spike_gids, self._spike_types):
+            gids.extend(trial_gids)
+            types.extend(trial_types)
+        gids = np.array(gids)
+        types = np.array(types)
+        if len(gids) == 0:
+            return np.array([], dtype=int)
+        return np.unique(gids[types == cell_type])
+
+    def mean_rates(self, tstart, tstop, gid_ranges=None, mean_type="all"):
         """Mean spike rates (Hz) by cell type.
 
         Parameters
@@ -252,10 +281,11 @@ class CellResponse(object):
             Value defining the start time of all trials.
         tstop : int | float | None
             Value defining the stop time of all trials.
-        gid_ranges : dict of lists or range objects
+        gid_ranges : dict of lists or range objects | None
             Dictionary with keys 'evprox1', 'evdist1' etc.
             containing the range of Cell or input IDs of different
-            cell or input types.
+            cell or input types. If None (default), the number of cells
+            per type is inferred from the recorded spikes.
         mean_type : str
             'all' : Average over trials and cells
                 Returns mean rate for cell types
@@ -284,7 +314,10 @@ class CellResponse(object):
             raise ValueError("tstop must be greater than tstart")
 
         for cell_type in self._cell_type_names:
-            cell_type_gids = np.array(gid_ranges[cell_type])
+            if gid_ranges is not None:
+                cell_type_gids = np.array(gid_ranges[cell_type])
+            else:
+                cell_type_gids = self._gids_from_spikes(cell_type)
             n_trials, n_cells = len(self._spike_times), len(cell_type_gids)
             gid_spike_rate = np.zeros((n_trials, n_cells))
 
@@ -300,15 +333,83 @@ class CellResponse(object):
                 ) * 1000
 
             if mean_type == "all":
-                spike_rates[cell_type] = np.mean(gid_spike_rate.mean(axis=1))
+                spike_rates[cell_type] = (
+                    np.mean(gid_spike_rate.mean(axis=1)) if n_cells > 0 else 0.0
+                )
             if mean_type == "trial":
-                spike_rates[cell_type] = np.mean(gid_spike_rate, axis=1).tolist()
+                spike_rates[cell_type] = (
+                    np.mean(gid_spike_rate, axis=1).tolist()
+                    if n_cells > 0
+                    else [0.0] * n_trials
+                )
             if mean_type == "cell":
                 spike_rates[cell_type] = [
                     gid_trial_rate.tolist() for gid_trial_rate in gid_spike_rate
                 ]
 
         return spike_rates
+
+    def rate_over_time(self, window_length_ms, cell_types, trial_idx):
+        """Mean spike rates (Hz) by cell type over time.
+
+        Parameters
+        ----------
+        window_length_ms : int | float
+            Length of the sliding window over which firing rates are calculated, in ms.
+        cell_types : list | str
+            Cell types for which firing rates are calculated.
+            If "all", firing rates are calculated for cell type in the network.
+        trial_idx : list | None
+            Trial index for which firing rate is calculated. If None, firing rates are calculated for all trials.
+
+        Returns
+        -------
+        rates : dict
+            Dictionary with keys 'L5_pyramidal', 'L5_basket', etc.
+            Includes firing rates over time for each cell type and trial.
+        """
+
+        window_length_samples = window_length_ms * 1 / np.diff(self.times)[0]
+        times = self.times
+        dt = np.diff(times)[0]
+        edges = np.concatenate(
+            [times - dt / 2, [times[-1] + dt / 2]]
+        )  # len(times)+1 edges
+
+        taper = np.hanning(int(window_length_samples))
+        taper /= taper.sum()
+        rates_time = dict()
+
+        if trial_idx is list:
+            n_trial = len(trial_idx)
+
+        elif trial_idx is None:
+            n_trial = len(self.spike_gids)
+            trial_idx = range(n_trial)
+        else:
+            ValueError(
+                f"trial_idx has to be of type list or None. Got {type(trial_idx)}"
+            )
+
+        if cell_types == "all" or cell_types is None:
+            cell_types = self._cell_type_names
+
+        for cell_type in cell_types:
+            n_cells = len(self._gids_from_spikes(cell_type))
+            rates_time[cell_type] = np.zeros((n_trial, len(times)))
+
+            if cell_type in self.spike_times_by_type and n_cells > 0:
+                for trial in range(n_trial):
+                    spike_type_time = np.histogram(
+                        self.spike_times_by_type[cell_type][trial], bins=edges
+                    )[0]
+                    rates_time[cell_type][trial] = (
+                        np.convolve(spike_type_time, taper, "same")
+                        / (dt / 1000)
+                        / n_cells
+                    )
+
+        return rates_time
 
     def plot_spikes_raster(
         self,
@@ -336,7 +437,7 @@ class CellResponse(object):
         cell_types : list of str
             List of cell types to plot
         colors : list of str | None
-            Optional custom colors to plot. Default will use the color cycler.
+            Optional custom colors to plot. Default will use the colors defined in cell metadata.
         show_legend : bool
             If True, show the legend with colors for cell types
         marker_size : float
@@ -366,6 +467,119 @@ class CellResponse(object):
             marker_size=marker_size,
             dpl=dpl,
             overlay_dipoles=overlay_dipoles,
+            **kwargs,
+        )
+
+    def plot_firing_rate_time(
+        self,
+        window_length_ms,
+        trial_idx=None,
+        ax=None,
+        show=True,
+        cell_types=None,
+        colors=None,
+        show_legend=True,
+        **kwargs,
+    ):
+        """Plot time course of firing rates
+
+        Parameters
+        ----------
+        window_length_ms : int | float
+            Length of the sliding window over which mean rates are calculated, in ms.
+        trial_idx : int | list of int | None
+            Index of trials to be plotted. If None, mean rate over trials is plotted,
+            and standard deviation is indicated by shading.
+        ax : instance of matplotlib axis | None
+            An axis object from matplotlib. If None, a new figure is created.
+        show : bool
+            If True, show the figure.
+        cell_types : list of str | None
+            List of cell types to plot. If None, all cell types are plotted.
+        colors : list of str | None
+            Optional custom colors to plot. Default will use the colors defined in cell metadata.
+        show_legend : bool
+            If True, show the legend with colors for cell types
+        **kwargs : option to include xlabel, ylabel, xticks, yticks, sharey, sharex, xlim, ylim for publication-ready figures.
+
+        Returns
+        -------
+        fig : instance of matplotlib Figure
+            The matplotlib figure object.
+        """
+
+        # validate trial argument
+        if isinstance(trial_idx, int):
+            trial_idx = [trial_idx]
+        _validate_type(trial_idx, (list, None), "trial_idx", "int, list of int")
+
+        # validate cell types
+        if cell_types:
+            _validate_type(cell_types, list, "cell_types", "list of str")
+            # allowed are spikes that fired (including drives) and generally cells in network
+            allowed_types = np.unique(self.cell_types + self._cell_type_names)
+            if not set(cell_types).issubset(allowed_types):
+                raise ValueError(
+                    "Invalid cell types provided. "
+                    f"Must be of set {allowed_types}. "
+                    f"Got {cell_types}"
+                )
+        else:
+            cell_types = self._cell_type_names
+
+        cell_type_metadata = getattr(self, "_cell_type_metadata", None)
+        # validate colors argument
+        _validate_type(colors, (list, dict, None), "color", "list of str, or dict")
+
+        # Set colors
+        if (
+            cell_type_metadata is not None
+            and "color" in cell_type_metadata[cell_types[0]]
+        ):
+            cell_colors = {
+                cell: meta["color"] for cell, meta in cell_type_metadata.items()
+            }
+        else:
+            default_colors = plt.rcParams["axes.prop_cycle"].by_key()["color"][
+                : len(cell_types)
+            ]
+            cell_colors = {
+                cell: color for cell, color in zip(cell_types, default_colors)
+            }
+
+        # calculate firing rates
+        fr_cell_types = self.rate_over_time(
+            window_length_ms=window_length_ms,
+            cell_types=cell_types,
+            trial_idx=trial_idx,
+        )
+
+        if colors:
+            if isinstance(colors, list):
+                if len(colors) != len(cell_types):
+                    raise ValueError(
+                        f"Number of colors must be equal to number of "
+                        f"cell types. {len(colors)} colors provided "
+                        f"for {len(cell_types)} cell types."
+                    )
+                cell_colors = {cell: color for cell, color in zip(cell_types, colors)}
+            if isinstance(colors, dict):
+                # Check valid cell types
+                if not set(colors.keys()).issubset(set(fr_cell_types.keys())):
+                    raise ValueError(
+                        "Invalid cell types provided. "
+                        f"Must be of set {fr_cell_types.keys()}. "
+                        f"Got {colors.keys()}"
+                    )
+                cell_colors.update(colors)
+
+        return plot_firing_rate_time(
+            fr_cell_types=fr_cell_types,
+            times=self.times,
+            ax=ax,
+            show=show,
+            colors=cell_colors,
+            show_legend=show_legend,
             **kwargs,
         )
 

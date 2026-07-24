@@ -487,6 +487,138 @@ class TestCellResponsePlotters:
                 trial_idx=0, show=False, colors=dict_mapping
             )
 
+    def test_firing_rate_time_colors(self, base_simulation_spikes):
+        """Plotting firing rates over time with different color arguments"""
+        net, _ = base_simulation_spikes
+        cell_response = net.cell_response
+        cell_types = cell_response._cell_type_names
+
+        def _get_line_hex_colors(axes):
+            """Return the legend line color and label from each subplot axis."""
+            colors, labels = [], []
+            for ax in np.atleast_1d(axes):
+                for line in ax.get_legend().get_lines():
+                    colors.append(matplotlib.colors.to_hex(line.get_color()))
+                    labels.append(line.get_label())
+            return colors, labels
+
+        # Default colors should come from the CellResponse metadata (if present)
+        if cell_response._cell_type_metadata:
+            metadata_colors = [
+                matplotlib.colors.to_hex(
+                    cell_response._cell_type_metadata[cell_type]["color"]
+                )
+                for cell_type in cell_types
+            ]
+            axes = cell_response.plot_firing_rate_time(window_length_ms=10, show=False)
+            colors, labels = _get_line_hex_colors(axes)
+            assert labels == cell_types
+            assert colors == metadata_colors
+
+        # Custom hex colors as a list, one per cell type
+        custom_colors = ["#daf7a6", "#ffc300", "#ff5733", "#c70039"]
+        axes = cell_response.plot_firing_rate_time(
+            window_length_ms=10, show=False, colors=custom_colors
+        )
+        colors, _ = _get_line_hex_colors(axes)
+        assert colors == custom_colors
+
+        # Custom named colors as a list
+        custom_colors = ["skyblue", "maroon", "gold", "hotpink"]
+        color_map = matplotlib.colors.get_named_colors_mapping()
+        axes = cell_response.plot_firing_rate_time(
+            window_length_ms=10, show=False, colors=custom_colors
+        )
+        colors, _ = _get_line_hex_colors(axes)
+        assert colors == [color_map[color].lower() for color in custom_colors]
+
+        # Colors as a dict mapping every cell type
+        dict_mapping = {
+            "L2_basket": "#daf7a6",
+            "L2_pyramidal": "#ffc300",
+            "L5_basket": "#ff5733",
+            "L5_pyramidal": "#c70039",
+        }
+        axes = cell_response.plot_firing_rate_time(
+            window_length_ms=10, show=False, colors=dict_mapping
+        )
+        colors, labels = _get_line_hex_colors(axes)
+        assert colors == [dict_mapping[label] for label in labels]
+
+        # Changing the color of only one cell type leaves the others untouched
+        default_axes = cell_response.plot_firing_rate_time(
+            window_length_ms=10, show=False
+        )
+        default_colors, _ = _get_line_hex_colors(default_axes)
+        axes = cell_response.plot_firing_rate_time(
+            window_length_ms=10, show=False, colors={"L2_pyramidal": "#daf7a6"}
+        )
+        colors, labels = _get_line_hex_colors(axes)
+        assert colors[labels.index("L2_pyramidal")] == "#daf7a6"
+        for i, label in enumerate(labels):
+            if label != "L2_pyramidal":
+                assert colors[i] == default_colors[i]
+
+    def test_firing_rate_time_errors(self, base_simulation_spikes):
+        """ValueErrors/TypeErrors are raised for invalid arguments"""
+        net, _ = base_simulation_spikes
+        cell_response = net.cell_response
+
+        # Invalid trial_idx type raises a TypeError
+        with pytest.raises(TypeError, match="trial_idx must be an instance of"):
+            cell_response.plot_firing_rate_time(
+                window_length_ms=10, trial_idx="blah", show=False
+            )
+
+        # Invalid cell_types type raises a TypeError
+        with pytest.raises(TypeError, match="cell_types must be an instance of"):
+            cell_response.plot_firing_rate_time(
+                window_length_ms=10, cell_types="L5_pyramidal", show=False
+            )
+
+        # Unknown cell type raises a ValueError
+        with pytest.raises(ValueError, match="Invalid cell types provided."):
+            cell_response.plot_firing_rate_time(
+                window_length_ms=10, cell_types=["bad_cell_type"], show=False
+            )
+
+        # Invalid colors type raises a TypeError
+        with pytest.raises(TypeError, match="color must be an instance of"):
+            cell_response.plot_firing_rate_time(
+                window_length_ms=10, colors="blue", show=False
+            )
+
+        # Wrong number of colors as a list raises a ValueError
+        too_few = ["r", "g", "b"]
+        too_many = ["r", "g", "b", "y", "k"]
+        for colors in [too_few, too_many]:
+            with pytest.raises(ValueError, match="Number of colors must be equal to"):
+                cell_response.plot_firing_rate_time(
+                    window_length_ms=10, show=False, colors=colors
+                )
+
+        # An unknown cell type in a colors dict raises a ValueError
+        with pytest.raises(ValueError, match="Invalid cell types provided."):
+            cell_response.plot_firing_rate_time(
+                window_length_ms=10, show=False, colors={"bad_cell_type": "#daf7a6"}
+            )
+
+        # A single axis cannot hold multiple cell types
+        _, ax = plt.subplots(1, 1)
+        with pytest.raises(
+            ValueError, match="ax and cell_types must have the same len"
+        ):
+            cell_response.plot_firing_rate_time(window_length_ms=10, ax=ax, show=False)
+
+        # An array of axes must match the number of cell types
+        _, axes = plt.subplots(2, 1)
+        with pytest.raises(
+            ValueError, match="ax and cell_types must have the same len"
+        ):
+            cell_response.plot_firing_rate_time(
+                window_length_ms=10, ax=axes, show=False
+            )
+
     def test_spikes_raster_dipole_overlay(self, base_simulation_spikes):
         net, dpls = base_simulation_spikes
 
