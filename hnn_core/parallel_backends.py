@@ -97,7 +97,6 @@ def _gather_trial_data(sim_data, net, n_trials, postproc, bsl_cor="jones"):
         if bsl_cor == "none":
             print("No baseline correction applied.", flush=True)
 
-
         if postproc:
             window_len = net._params["dipole_smooth_win"]  # specified in ms
             fctr = net._params["dipole_scalefctr"]

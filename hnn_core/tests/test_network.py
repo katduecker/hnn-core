@@ -341,9 +341,7 @@ def test_network_models():
 
 def test_model_variant_read_from_params():
     """Test that 'model_variant' survives read_params"""
-    duecker_params_fname = op.join(
-        hnn_core_root, "param", "default_duecker_ET.json"
-    )
+    duecker_params_fname = op.join(hnn_core_root, "param", "default_duecker_ET.json")
     params = read_params(duecker_params_fname)
     assert params["model_variant"] == "duecker_ET_model"
 
@@ -353,9 +351,7 @@ def test_model_variant_read_from_params():
 
 def test_model_variant_matches_network():
     """Test that a mismatch between param file and network model is caught"""
-    duecker_params_fname = op.join(
-        hnn_core_root, "param", "default_duecker_ET.json"
-    )
+    duecker_params_fname = op.join(hnn_core_root, "param", "default_duecker_ET.json")
     duecker_params = read_params(duecker_params_fname)
     mesh_shape = (3, 3)
 
@@ -401,7 +397,7 @@ def test_model_variant_matches_network():
     # requires 'model_variant' rather than falling back to default values
     params = duecker_params.copy()
     del params["model_variant"]
-    with pytest.raises(ValueError, match="model_variant is required"):
+    with pytest.raises(ValueError, match="'model_variant' is required"):
         duecker_ET_model(params=params, mesh_shape=mesh_shape)
 
     # models that predate 'model_variant' still build without it
@@ -446,9 +442,7 @@ def test_network_models_cell_params(network_model):
 
 def test_duecker_ET_model_cell_params():
     """Test that duecker_ET_model checks the cell types defined in params"""
-    duecker_params_fname = op.join(
-        hnn_core_root, "param", "default_duecker_ET.json"
-    )
+    duecker_params_fname = op.join(hnn_core_root, "param", "default_duecker_ET.json")
     duecker_params = read_params(duecker_params_fname)
     mesh_shape = (3, 3)
 

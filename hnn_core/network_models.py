@@ -193,8 +193,10 @@ def neymotin_2020_model(
     ):
         net._model_variant = "neymotin_2020_model"
     else:
-        raise ValueError(f"Parameters for {check_var} used for neymotin_2020_model (jones_2000_model)."
-                         " Ensure that your param .json file matches network model.")
+        raise ValueError(
+            f"Parameters for {check_var} used for neymotin_2020_model (jones_2000_model)."
+            " Ensure that your param .json file matches network model."
+        )
     net._stim_prefix = params.get("stim_prefix", "default")
 
     # check that the params define the cell types of this network
@@ -204,8 +206,10 @@ def neymotin_2020_model(
         if not any(cell_name in key for key in params)
     ]
     if missing_cells:
-        raise ValueError(f"No parameters found for {', '.join(missing_cells)}."
-                            " Ensure that your param .json file matches network.")
+        raise ValueError(
+            f"No parameters found for {', '.join(missing_cells)}."
+            " Ensure that your param .json file matches the network."
+        )
 
     # source of synapse is always at soma
 
@@ -451,9 +455,11 @@ def law_2021_model(
     if check_var is None or "law_2021_model".startswith(check_var):
         net._model_variant = "law_2021_model"
     else:
-        raise ValueError(f"Parameters for {check_var} used for law_2021_model."
-                            " Ensure that your param .json file matches network.")
-    
+        raise ValueError(
+            f"Parameters for {check_var} used for law_2021_model."
+            " Ensure that your param .json file matches the network."
+        )
+
     # Update biophysics (increase gabab duration of inhibition)
     net.cell_types["L2_pyramidal"]["cell_object"].synapses["gabab"]["tau1"] = 45.0
     net.cell_types["L2_pyramidal"]["cell_object"].synapses["gabab"]["tau2"] = 200.0
@@ -551,8 +557,10 @@ def calcium_model(
     if check_var is None or "calcium_model".startswith(check_var):
         net._model_variant = "calcium_model"
     else:
-        raise ValueError(f"Parameters for {check_var} used for calcium_model."
-                            " Ensure that your param .json file matches network.")
+        raise ValueError(
+            f"Parameters for {check_var} used for calcium_model."
+            " Ensure that your param .json file matches the network."
+        )
     net._stim_prefix = params.get("stim_prefix", "default")
 
     # Replace L5 pyramidal cell template with updated calcium
@@ -660,15 +668,19 @@ def duecker_ET_model(
     # check variant
     check_var = params.get("model_variant", None)
     if check_var is None:
-        raise ValueError(f"model_variant is required for simulations with duecker_ET_model. "
-                                 "If you are sure that you are using the correct parameters, "
-                                 "add 'model_variant': 'duecker_ET_model' to the first line of "
-                                 "the param .json file.")
+        raise ValueError(
+            "'model_variant' is required for simulations with duecker_ET_model. "
+            "If you are sure that you are using the correct parameters, "
+            "add 'model_variant': 'duecker_ET_model', to the first line of "
+            "the param .json file."
+        )
     elif "duecker_ET_model".startswith(check_var):
-        net._model_variant = "duecker_ET_model"       
+        net._model_variant = "duecker_ET_model"
     else:
-        raise ValueError(f"Parameters for {check_var} used for duecker_ET_model."
-                            " Ensure that your param .json file matches network.")
+        raise ValueError(
+            f"Parameters for {check_var} used for duecker_ET_model."
+            " Ensure that your param .json file matches the network."
+        )
     net._stim_prefix = params.get("stim_prefix", "duecker_ET_default")
 
     # check that the params define the cell types of this network. Basket
@@ -679,17 +691,21 @@ def duecker_ET_model(
         if not any(cell_name in key for key in params)
     ]
     if missing_cells:
-        raise ValueError(f"No parameters found for {', '.join(missing_cells)}."
-                            " Ensure that your param .json file matches network.")
+        raise ValueError(
+            f"No parameters found for {', '.join(missing_cells)}."
+            " Ensure that your param .json file matches network."
+        )
     basket_cells = [
         cell_name
         for cell_name in ["L2Basket", "L5Basket"]
         if any(cell_name in key for key in params)
     ]
     if basket_cells:
-        raise ValueError(f"Parameters found for {', '.join(basket_cells)}, which"
-                            " are not part of duecker_ET_model. Ensure that your"
-                            " param .json file matches network.")
+        raise ValueError(
+            f"Parameters found for {', '.join(basket_cells)}, which"
+            " are not part of duecker_ET_model. Ensure that your"
+            " param .json file matches network."
+        )
 
     delay = net.delay
 

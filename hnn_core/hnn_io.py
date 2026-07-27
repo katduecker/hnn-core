@@ -623,12 +623,16 @@ def read_network_configuration(fname, read_drives=True, read_external_biases=Tru
                 cell_name in net_data["cell_types"]
                 for cell_name in ["L2_basket", "L5_basket"]
             ):
-                hint = (" The network has basket cells instead, so you are likely"
-                        " trying to create a duecker_ET_model with"
-                        " neymotin_2020_model cell types.")
-            raise ValueError(f"The cell types of the network do not match "
-                             f"model_variant duecker_ET_model: no "
-                             f"{', '.join(missing_cells)} found.{hint}")
+                hint = (
+                    " The network has basket cells instead, so you are likely"
+                    " trying to create a duecker_ET_model with"
+                    " neymotin_2020_model cell types."
+                )
+            raise ValueError(
+                f"The cell types of the network do not match "
+                f"model_variant duecker_ET_model: no "
+                f"{', '.join(missing_cells)} found.{hint}"
+            )
 
     net = dict_to_network(net_data, read_drives, read_external_biases)
     _check_global_synaptic_gains_uniformity(net)
