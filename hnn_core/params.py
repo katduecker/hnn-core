@@ -330,10 +330,12 @@ class Params(dict):
             nprox, ndist = _count_evoked_inputs(params_input)
 
             params_default = get_params_default(nprox, ndist)
-            # don't use any default values for duecker_ET_model
-            if (
-                "sim_prefix" in params_input
-                and params_input["sim_prefix"] == "duecker_ET_model"
+            # don't use any default values for duecker_ET_model. 'sim_prefix'
+            # is accepted for backwards compatibility with param files written
+            # before 'model_variant' was introduced.
+            if "duecker_ET_model" in (
+                params_input.get("model_variant"),
+                params_input.get("sim_prefix"),
             ):
                 for key in params_input.keys():
                     self[key] = params_input[key]
@@ -343,6 +345,10 @@ class Params(dict):
                         self[key] = params_input[key]
                     else:
                         self[key] = params_default[key]
+                # 'model_variant' is not part of the legacy defaults, but must
+                # survive so the network models can validate the param file
+                if "model_variant" in params_input:
+                    self["model_variant"] = params_input["model_variant"]
         else:
             raise ValueError(
                 "params_input must be dict or None. Got %s" % type(params_input)

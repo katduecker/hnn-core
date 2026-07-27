@@ -185,6 +185,28 @@ def neymotin_2020_model(
 
     delay = net.delay
 
+    # ensure model variant matches current model
+    check_var = params.get("model_variant", None)
+    if check_var is None or any(
+        model_str.startswith(check_var)
+        for model_str in ["neymotin_2020_model", "jones_2009_model"]
+    ):
+        net._model_variant = "neymotin_2020_model"
+    else:
+        raise ValueError(f"Parameters for {check_var} used for neymotin_2020_model (jones_2000_model)."
+                         " Ensure that your param .json file matches network model.")
+    net._stim_prefix = params.get("stim_prefix", "default")
+
+    # check that the params define the cell types of this network
+    missing_cells = [
+        cell_name
+        for cell_name in ["L2Pyr", "L5Pyr", "L2Basket", "L5Basket"]
+        if not any(cell_name in key for key in params)
+    ]
+    if missing_cells:
+        raise ValueError(f"No parameters found for {', '.join(missing_cells)}."
+                            " Ensure that your param .json file matches network.")
+
     # source of synapse is always at soma
 
     # layer2 Pyr -> layer2 Pyr
@@ -412,13 +434,26 @@ def law_2021_model(
            Perception." Cerebral Cortex, 32, 668–688 (2022).
     """
 
-    net = jones_2009_model(
+    hnn_core_root = op.dirname(hnn_core.__file__)
+    if params is None:
+        params = op.join(hnn_core_root, "param", "default.json")
+    if isinstance(params, str):
+        params = read_params(params)
+
+    net = neymotin_2020_model(
         params,
         add_drives_from_params,
         legacy_mode,
         mesh_shape=mesh_shape,
     )
-
+    # check variant
+    check_var = params.get("model_variant", None)
+    if check_var is None or "law_2021_model".startswith(check_var):
+        net._model_variant = "law_2021_model"
+    else:
+        raise ValueError(f"Parameters for {check_var} used for law_2021_model."
+                            " Ensure that your param .json file matches network.")
+    
     # Update biophysics (increase gabab duration of inhibition)
     net.cell_types["L2_pyramidal"]["cell_object"].synapses["gabab"]["tau1"] = 45.0
     net.cell_types["L2_pyramidal"]["cell_object"].synapses["gabab"]["tau2"] = 200.0
@@ -510,6 +545,15 @@ def calcium_model(
         legacy_mode,
         mesh_shape=mesh_shape,
     )
+
+    # check variant
+    check_var = params.get("model_variant", None)
+    if check_var is None or "calcium_model".startswith(check_var):
+        net._model_variant = "calcium_model"
+    else:
+        raise ValueError(f"Parameters for {check_var} used for calcium_model."
+                            " Ensure that your param .json file matches network.")
+    net._stim_prefix = params.get("stim_prefix", "default")
 
     # Replace L5 pyramidal cell template with updated calcium
     cell_name = "L5_pyramidal"
@@ -612,6 +656,40 @@ def duecker_ET_model(
         pos_dict=pos_dict,
         cell_types=cell_types,
     )
+
+    # check variant
+    check_var = params.get("model_variant", None)
+    if check_var is None:
+        raise ValueError(f"model_variant is required for simulations with duecker_ET_model. "
+                                 "If you are sure that you are using the correct parameters, "
+                                 "add 'model_variant': 'duecker_ET_model' to the first line of "
+                                 "the param .json file.")
+    elif "duecker_ET_model".startswith(check_var):
+        net._model_variant = "duecker_ET_model"       
+    else:
+        raise ValueError(f"Parameters for {check_var} used for duecker_ET_model."
+                            " Ensure that your param .json file matches network.")
+    net._stim_prefix = params.get("stim_prefix", "duecker_ET_default")
+
+    # check that the params define the cell types of this network. Basket
+    # cells are replaced by interneurons in duecker_ET_model
+    missing_cells = [
+        cell_name
+        for cell_name in ["L2Pyr", "L5Pyr", "L2Inh", "L5Inh"]
+        if not any(cell_name in key for key in params)
+    ]
+    if missing_cells:
+        raise ValueError(f"No parameters found for {', '.join(missing_cells)}."
+                            " Ensure that your param .json file matches network.")
+    basket_cells = [
+        cell_name
+        for cell_name in ["L2Basket", "L5Basket"]
+        if any(cell_name in key for key in params)
+    ]
+    if basket_cells:
+        raise ValueError(f"Parameters found for {', '.join(basket_cells)}, which"
+                            " are not part of duecker_ET_model. Ensure that your"
+                            " param .json file matches network.")
 
     delay = net.delay
 

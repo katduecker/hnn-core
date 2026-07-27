@@ -15,6 +15,7 @@ from hnn_core import (
     CellResponse,
     Network,
     calcium_model,
+    duecker_ET_model,
     neymotin_2020_model,
     jones_2009_model,
     law_2021_model,
@@ -336,6 +337,135 @@ def test_network_models():
         # Ensure negative exponential distance dependent K gbar
         assert np.all(np.diff(k_gbar) < 0)
         assert np.all(np.diff(k_gbar, n=2) > 0)  # positive 2nd derivative
+
+
+def test_model_variant_read_from_params():
+    """Test that 'model_variant' survives read_params"""
+    duecker_params_fname = op.join(
+        hnn_core_root, "param", "default_duecker_ET.json"
+    )
+    params = read_params(duecker_params_fname)
+    assert params["model_variant"] == "duecker_ET_model"
+
+    # param files of models that predate 'model_variant' don't define it
+    assert "model_variant" not in read_params(params_fname)
+
+
+def test_model_variant_matches_network():
+    """Test that a mismatch between param file and network model is caught"""
+    duecker_params_fname = op.join(
+        hnn_core_root, "param", "default_duecker_ET.json"
+    )
+    duecker_params = read_params(duecker_params_fname)
+    mesh_shape = (3, 3)
+
+    # a matching param file builds the network without error
+    net_duecker = duecker_ET_model(mesh_shape=mesh_shape)
+    assert net_duecker._model_variant == "duecker_ET_model"
+
+    net_neymotin = neymotin_2020_model(mesh_shape=mesh_shape)
+    assert net_neymotin._model_variant == "neymotin_2020_model"
+
+    # abbreviated variant names are accepted
+    for variant in ["duecker_ET", "duecker"]:
+        params = duecker_params.copy()
+        params["model_variant"] = variant
+        net = duecker_ET_model(params=params, mesh_shape=mesh_shape)
+        assert net._model_variant == "duecker_ET_model"
+
+    for variant in ["neymotin", "jones"]:
+        params = read_params(params_fname)
+        params["model_variant"] = variant
+        net = neymotin_2020_model(params=params, mesh_shape=mesh_shape)
+        assert net._model_variant == "neymotin_2020_model"
+
+    # duecker_ET_model parameters used for neymotin_2020_model
+    params = read_params(params_fname)
+    params["model_variant"] = "duecker_ET_model"
+    with pytest.raises(ValueError, match="used for neymotin_2020_model"):
+        neymotin_2020_model(params=params, mesh_shape=mesh_shape)
+
+    # neymotin_2020_model parameters used for duecker_ET_model
+    params = duecker_params.copy()
+    params["model_variant"] = "neymotin_2020_model"
+    with pytest.raises(ValueError, match="used for duecker_ET_model"):
+        duecker_ET_model(params=params, mesh_shape=mesh_shape)
+
+    # a name that is not an abbreviation of any model is rejected
+    params = read_params(params_fname)
+    params["model_variant"] = "model"
+    with pytest.raises(ValueError, match="used for neymotin_2020_model"):
+        neymotin_2020_model(params=params, mesh_shape=mesh_shape)
+
+    # duecker_ET_model shares no parameters with the default model, so it
+    # requires 'model_variant' rather than falling back to default values
+    params = duecker_params.copy()
+    del params["model_variant"]
+    with pytest.raises(ValueError, match="model_variant is required"):
+        duecker_ET_model(params=params, mesh_shape=mesh_shape)
+
+    # models that predate 'model_variant' still build without it
+    assert (
+        neymotin_2020_model(
+            params=read_params(params_fname), mesh_shape=mesh_shape
+        )._model_variant
+        == "neymotin_2020_model"
+    )
+    assert (
+        calcium_model(
+            params=read_params(params_fname), mesh_shape=mesh_shape
+        )._model_variant
+        == "calcium_model"
+    )
+    assert (
+        law_2021_model(
+            params=read_params(params_fname), mesh_shape=mesh_shape
+        )._model_variant
+        == "law_2021_model"
+    )
+
+
+@pytest.mark.parametrize(
+    "network_model",
+    [neymotin_2020_model, law_2021_model, calcium_model],
+)
+def test_network_models_cell_params(network_model):
+    """Test that the network models check the cell types defined in params"""
+    default_params = read_params(params_fname)
+    mesh_shape = (3, 3)
+
+    # law_2021_model and calcium_model inherit the check from the
+    # neymotin_2020_model network they are built on
+    for cell_name in ["L2Pyr", "L5Pyr", "L2Basket", "L5Basket"]:
+        params = default_params.copy()
+        for key in [key for key in params if cell_name in key]:
+            del params[key]
+        with pytest.raises(ValueError, match=f"No parameters found for {cell_name}"):
+            network_model(params=params, mesh_shape=mesh_shape)
+
+
+def test_duecker_ET_model_cell_params():
+    """Test that duecker_ET_model checks the cell types defined in params"""
+    duecker_params_fname = op.join(
+        hnn_core_root, "param", "default_duecker_ET.json"
+    )
+    duecker_params = read_params(duecker_params_fname)
+    mesh_shape = (3, 3)
+
+    # parameters are needed for the pyramidal cells and the interneurons
+    for cell_name in ["L2Pyr", "L5Pyr", "L2Inh", "L5Inh"]:
+        params = duecker_params.copy()
+        for key in [key for key in params if cell_name in key]:
+            del params[key]
+        with pytest.raises(ValueError, match=f"No parameters found for {cell_name}"):
+            duecker_ET_model(params=params, mesh_shape=mesh_shape)
+
+    # basket cells are replaced by interneurons in this network
+    for cell_name in ["L2Basket", "L5Basket"]:
+        params = duecker_params.copy()
+        params[f"gbar_{cell_name}_L2Pyr_gabaa"] = 0.0
+        with pytest.raises(ValueError, match=f"Parameters found for {cell_name}"):
+            duecker_ET_model(params=params, mesh_shape=mesh_shape)
 
 
 def test_network_cell_positions():
