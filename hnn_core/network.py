@@ -583,22 +583,18 @@ class Network:
                 for dim_diffs, dimension in [(x_diffs, "X"), (y_diffs, "Y")]:
                     if len(dim_diffs) == 0:
                         warnings.warn(
-                            "There appears to be no distance between the cells in the "
-                            f"{dimension} dimension for cell type '{cell_type}' in the "
-                            "provided 'pos_dict'. If this is not intentional, please "
-                            "check that your 'pos_dict' is well-formed. This can happen "
-                            "in the following scenarios: "
+                            f"Zero distance between cells of type '{cell_type}' "
+                            f"in the {dimension} dimension in the provided 'pos_dict'. "
                             "\n"
-                            "- If you are simulating a network with only a single cell of "
-                            "this cell type, such as if you are using "
-                            "`mesh_shape=(1, 1)`. "
+                            "This can happen if: "
                             "\n"
-                            f"- If the positions of '{cell_type}' in your 'pos_dict' "
+                            "- you are simulating a network with only a single cell of "
+                            "this cell type, e.g. using `mesh_shape=(1, 1)`."
+                            "\n"
+                            f"- the positions of '{cell_type}' in your 'pos_dict' "
                             f"are all the same in the {dimension} dimension. "
                             "\n"
-                            "In order to prevent `Network._inplane_distance` from being "
-                            f"NaN, the in-plane distance in the {dimension} dimension for "
-                            "this cell type will be overridden to be 1.0."
+                            "If this is not intentional, check your 'pos_dict'!"
                         )
                         # Note for developers: In the warned cases above, it should be
                         # safe to override the problematic dimension's in-plane distance
@@ -634,7 +630,6 @@ class Network:
                     # between the somas of pyramidal cells in layer 2/3 versus those in
                     # layer 5.
                     #
-                    # KDTODO this is in microns, right? this comes out to about 1307.4ish
                     self._layer_separation = np.mean(
                         np.array(self.pos_dict[cell_type])[:, 2]
                     )

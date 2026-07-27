@@ -302,8 +302,8 @@ def test_custom_network_coords_degenerate_dimension():
         "L2_pyramidal": [(0.0, 0.0, 0.0)],
         "origin": (0.0, 0.0, 0.0),
     }
-    with pytest.warns(UserWarning, match="no distance between the cells in the X"):
-        with pytest.warns(UserWarning, match="no distance between the cells in the Y"):
+    with pytest.warns(UserWarning, match="Zero distance between cells of type 'L2_pyramidal' in the X"):
+        with pytest.warns(UserWarning, match="Zero distance between cells of type 'L2_pyramidal' in the Y"):
             net = Network(
                 params,
                 pos_dict=single_cell_pos_dict,
@@ -317,7 +317,7 @@ def test_custom_network_coords_degenerate_dimension():
         "L2_pyramidal": [(0.0, 0.0, 0.0), (0.0, 3.0, 0.0), (0.0, 6.0, 0.0)],
         "origin": (0.0, 0.0, 0.0),
     }
-    with pytest.warns(UserWarning, match="no distance between the cells in the X"):
+    with pytest.warns(UserWarning, match="Zero distance between cells of type 'L2_pyramidal' in the X"):
         net_line = Network(
             params,
             pos_dict=line_pos_dict,
