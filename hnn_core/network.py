@@ -769,7 +769,7 @@ class Network:
         self._inplane_distance = inplane_distance
         self._layer_separation = layer_separation
 
-    def reset_cell_positions(
+    def update_cell_positions(
         self,
         inplane_distance=None,
         layer_separation=None,
@@ -873,7 +873,7 @@ class Network:
     ):
         """Reset relative positions of cells arranged in a square grid (Deprecated)
 
-        This function is deprecated in favor of `Network.reset_cell_positions`. Note
+        This function is deprecated in favor of `Network.update_cell_positions`. Note
         that it is possible to change one of the parameters without changing the other.
 
         Parameters
@@ -888,11 +888,11 @@ class Network:
         """
         warnings.warn(
             "`Network.set_cell_positions` will be deprecated in favor of "
-            "`Network.reset_cell_positions` in future releases.",
+            "`Network.update_cell_positions` in future releases.",
             FutureWarning,
             stacklevel=1,
         )
-        self.reset_cell_positions(
+        self.update_cell_positions(
             inplane_distance=inplane_distance,
             layer_separation=layer_separation,
         )

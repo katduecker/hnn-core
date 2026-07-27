@@ -167,9 +167,9 @@ def test_custom_network_coords(mesh_shape):
         "origin": custom_layer_dict["origin"],
     }
     if mesh_shape == (1, 1):
-        with pytest.warns(UserWarning, match="no distance between the cells in the X"):
+        with pytest.warns(UserWarning, match="Zero distance between cells of type 'L2_pyramidal' in the X"):
             with pytest.warns(
-                UserWarning, match="no distance between the cells in the Y"
+                UserWarning, match="Zero distance between cells of type 'L2_pyramidal' in the Y"
             ):
                 custom_net = Network(
                     params, pos_dict=custom_pos_dict, cell_types=custom_cell_types
@@ -528,12 +528,12 @@ def test_network_cell_positions(mesh_shape):
     # Apply changes, and test that everything comes out as expected
     # ----------------------------------------------------------------------------------
     # check that in-plane distance changes, but layer separation does NOT change
-    net.reset_cell_positions(inplane_distance=new_inplane_distance)
+    net.update_cell_positions(inplane_distance=new_inplane_distance)
     assert np.isclose(net._inplane_distance, new_inplane_distance)
     assert np.isclose(net._layer_separation, default_layer_separation)
 
     # check that now, both have changed
-    net.reset_cell_positions(layer_separation=new_layer_separation)
+    net.update_cell_positions(layer_separation=new_layer_separation)
     assert np.isclose(net._inplane_distance, new_inplane_distance)
     assert np.isclose(net._layer_separation, new_layer_separation)
 
@@ -575,40 +575,40 @@ def test_network_cell_positions(mesh_shape):
     # Input validation
     # ------------------------------------------------------------------------------
     with pytest.raises(ValueError, match="At least one of inplane_distance"):
-        net.reset_cell_positions()
+        net.update_cell_positions()
 
     with pytest.raises(ValueError, match="In-plane distance must be positive"):
-        net.reset_cell_positions(inplane_distance=0.0)
+        net.update_cell_positions(inplane_distance=0.0)
     with pytest.raises(ValueError, match="Layer separation must be positive"):
-        net.reset_cell_positions(layer_separation=0.0)
+        net.update_cell_positions(layer_separation=0.0)
 
     with pytest.raises(TypeError, match="inplane_distance must be an instance of"):
-        net.reset_cell_positions(inplane_distance=f"{new_inplane_distance}")
+        net.update_cell_positions(inplane_distance=f"{new_inplane_distance}")
     with pytest.raises(TypeError, match="layer_separation must be an instance of"):
-        net.reset_cell_positions(layer_separation=[new_layer_separation])
+        net.update_cell_positions(layer_separation=[new_layer_separation])
 
     # A NaN or zero current in-plane distance means the network is in a bad
-    # state and reset_cell_positions should refuse to guess a scaling factor
+    # state and update_cell_positions should refuse to guess a scaling factor
     net_bad = neymotin_2020_model(mesh_shape=mesh_shape)
     net_bad._inplane_distance = np.nan
     with pytest.raises(ValueError, match="Cannot reset cell positions"):
-        net_bad.reset_cell_positions(inplane_distance=new_inplane_distance)
+        net_bad.update_cell_positions(inplane_distance=new_inplane_distance)
     net_bad._inplane_distance = 0.0
     with pytest.raises(ValueError, match="Cannot reset cell positions"):
-        net_bad.reset_cell_positions(inplane_distance=new_inplane_distance)
+        net_bad.update_cell_positions(inplane_distance=new_inplane_distance)
 
     # Sequential relative resets must compose the same as a single direct
-    # reset from the original network, since reset_cell_positions always
+    # reset from the original network, since update_cell_positions always
     # scales relative to the *current* net._inplane_distance
     # ------------------------------------------------------------------------------
     net_direct = neymotin_2020_model(add_drives_from_params=True, mesh_shape=mesh_shape)
-    net_direct.reset_cell_positions(inplane_distance=8.0, layer_separation=3000.0)
+    net_direct.update_cell_positions(inplane_distance=8.0, layer_separation=3000.0)
 
     net_sequential = neymotin_2020_model(
         add_drives_from_params=True, mesh_shape=mesh_shape
     )
-    net_sequential.reset_cell_positions(inplane_distance=4.1, layer_separation=1531.0)
-    net_sequential.reset_cell_positions(inplane_distance=8.0, layer_separation=3000.0)
+    net_sequential.update_cell_positions(inplane_distance=4.1, layer_separation=1531.0)
+    net_sequential.update_cell_positions(inplane_distance=8.0, layer_separation=3000.0)
 
     # Check cell types
     for cell_type in net_direct.cell_types:
