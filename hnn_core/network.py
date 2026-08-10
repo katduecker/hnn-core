@@ -728,20 +728,21 @@ class Network:
 
         This arranges them in a square grid.
 
-         Parameters
-         ----------
-         inplane_distance : float
-             The in plane-distance (in um) between pyramidal cell somas in the
-             square grid. Note that this parameter does not affect the amplitude
-             of the dipole moment.
-         layer_separation : float
-             The separation of pyramidal cell soma layers 2/3 and 5. Note that
+        Parameters
+        ----------
+        inplane_distance : float
+            The in plane-distance (in um) between pyramidal cell somas in the
+            square grid. Note that this parameter does not affect the amplitude
+            of the dipole moment.
         layer_separation : float
             The separation of pyramidal cell soma layers 2/3 and 5. Note that
             this parameter does not affect the amplitude of the dipole moment.
         Note
         ----
-        If a `pos_dict` is already provided (i.e. manually specifying cell positions when creating the Network), then this function will shift the existing positions. If there is no pre-defined `pos_dict`, then a `pos_dict` is created where cells are positioned on a grid.
+        If a `pos_dict` is already provided (i.e. manually specifying cell positions
+        when creating the Network), then this function will shift the existing
+        positions. If there is no pre-defined `pos_dict`, then a `pos_dict` is created
+        where cells are positioned on a grid.
 
         """
         # Get layer positions using layer dict
@@ -774,10 +775,10 @@ class Network:
         inplane_distance=None,
         layer_separation=None,
     ):
-        """Reset relative positions of cells arranged in a square grid.
+        """Change relative positions of cells arranged in a square grid.
 
         Note that it is possible to change one of the parameters without changing the
-        other.
+        other. You must pass at least one argument.
 
         Parameters
         ----------

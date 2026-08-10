@@ -1,4 +1,3 @@
-
 """Network model functions."""
 
 # Authors: Nick Tolley <nicholas_tolley@brown.edu>
