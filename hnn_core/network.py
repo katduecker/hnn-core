@@ -634,6 +634,12 @@ class Network:
                         np.array(self.pos_dict[cell_type])[:, 2]
                     )
 
+            # Make a backup copies of all the position information, in case the user
+            # wants to reset everything to original cell positions
+            self._original_pos_dict = deepcopy(self.pos_dict)
+            self._original_inplane_distance = deepcopy(self._inplane_distance)
+            self._original_layer_separation = deepcopy(self._layer_separation)
+
             # Since we're in the initializer, we do not need to reposition any drives
             # after creating the above.
 
@@ -663,10 +669,29 @@ class Network:
             self._inplane_distance = 1.0  # XXX hard-coded default
             self._layer_separation = 1307.4  # XXX hard-coded default
 
-            self._create_default_cell_positions(
-                self._inplane_distance,
-                self._layer_separation,
+            # Set the relative positions of cells (pos_dict) assuming default cell
+            # types. This arranges them in a square grid.
+            layer_dict = _create_cell_coords(
+                n_pyr_x=self._N_pyr_x,
+                n_pyr_y=self._N_pyr_y,
+                z_coord=self._layer_separation,
+                inplane_distance=self._inplane_distance,
             )
+
+            # Map layers to cell types, for default mapping
+            self.pos_dict = {
+                "L5_pyramidal": layer_dict["L5_bottom"],
+                "L2_pyramidal": layer_dict["L2_bottom"],
+                "L5_basket": layer_dict["L5_mid"],
+                "L2_basket": layer_dict["L2_mid"],
+                "origin": layer_dict["origin"],
+            }
+
+            # Make a backup copies of all the position information, in case the user
+            # wants to reset everything to original cell positions
+            self._original_pos_dict = deepcopy(self.pos_dict)
+            self._original_inplane_distance = deepcopy(self._inplane_distance)
+            self._original_layer_separation = deepcopy(self._layer_separation)
 
             # populates self.gid_ranges for the 1st time: order matters for
             # NetworkBuilder!
@@ -719,56 +744,27 @@ class Network:
 
         return True
 
-    def _create_default_cell_positions(
-        self,
-        inplane_distance,
-        layer_separation,
-    ):
-        """Set the relative positions of cells (pos_dict) assuming default cell types.
+    def _reset_to_original_cell_positions(self):
+        """Reset the relative positions of cells to their original positions.
 
-        This arranges them in a square grid.
+        This resets ``Network.pos_dict``, ``Network._inplane_distance``, and
+        ``Network._layer_separation`` to their original values, which were set when the
+        Network was first created. This includes whether the original positions were
+        using the ``Network`` defaults, or if a user passed their own ``pos_dict`` and
+        ``cell_types`` to the constructor and are using the calculated in-plane distance
+        and layer separation from that custom ``pos_dict``.
 
-        Parameters
-        ----------
-        inplane_distance : float
-            The in plane-distance (in um) between pyramidal cell somas in the
-            square grid. Note that this parameter does not affect the amplitude
-            of the dipole moment.
-        layer_separation : float
-            The separation of pyramidal cell soma layers 2/3 and 5. Note that
-            this parameter does not affect the amplitude of the dipole moment.
-        Note
-        ----
-        If a `pos_dict` is already provided (i.e. manually specifying cell positions
-        when creating the Network), then this function will shift the existing
-        positions. If there is no pre-defined `pos_dict`, then a `pos_dict` is created
-        where cells are positioned on a grid.
-
+        This can be used to reset your cell positions to a known-good state after
+        calling ``Network.update_cell_positions``.
         """
-        # Get layer positions using layer dict
-        layer_dict = _create_cell_coords(
-            n_pyr_x=self._N_pyr_x,
-            n_pyr_y=self._N_pyr_y,
-            z_coord=layer_separation,
-            inplane_distance=inplane_distance,
-        )
-
-        # Map layers to cell types, for default mapping
-        self.pos_dict = {
-            "L5_pyramidal": layer_dict["L5_bottom"],
-            "L2_pyramidal": layer_dict["L2_bottom"],
-            "L5_basket": layer_dict["L5_mid"],
-            "L2_basket": layer_dict["L2_mid"],
-            "origin": layer_dict["origin"],
-        }
+        self.pos_dict = deepcopy(self._original_pos_dict)
+        self._inplane_distance = deepcopy(self._original_inplane_distance)
+        self._layer_separation = deepcopy(self._original_layer_separation)
 
         # update drives to be positioned at network origin
         for drive_name, drive in self.external_drives.items():
             pos = [self.pos_dict["origin"]] * drive["n_drive_cells"]
             self.pos_dict[drive_name] = pos
-
-        self._inplane_distance = inplane_distance
-        self._layer_separation = layer_separation
 
     def update_cell_positions(
         self,

@@ -31,7 +31,7 @@ from hnn_core.network import (
     pick_connection,
 )
 from hnn_core.network_builder import NetworkBuilder
-from hnn_core.network_models import add_erp_drives_to_jones_model
+from hnn_core.network_models import add_erp_drives_to_jones_model, duecker_ET_model
 from hnn_core.viz import plot_dipole
 
 hnn_core_root = op.dirname(hnn_core.__file__)
@@ -638,6 +638,176 @@ def test_network_cell_positions(mesh_shape):
             np.array(net_sequential.pos_dict[drive_name]),
             np.array(net_direct.pos_dict[drive_name]),
         )
+
+
+@pytest.mark.parametrize(
+    "model_name", ["neymotin_2020_model", "duecker_ET_model", "custom_pos_dict"]
+)
+@pytest.mark.parametrize("mesh_shape", [(3, 3), (10, 10)])
+def test_network_reset_to_original_cell_positions(model_name, mesh_shape):
+    """Test that Network._reset_to_original_cell_positions restores positions.
+
+    ``neymotin_2020_model`` exercises the default-network branch of the Network
+    constructor (hard-coded in-plane distance and layer separation), while
+    ``duecker_ET_model`` and the hand-built network exercise the custom
+    ``pos_dict``/``cell_types`` branch, where those quantities are instead derived
+    from the provided positions.
+    """
+    # Setup
+    # ----------------------------------------------------------------------------------
+    if model_name == "neymotin_2020_model":
+        # default-network branch, with drives created at construction time
+        net = neymotin_2020_model(add_drives_from_params=True, mesh_shape=mesh_shape)
+        expected_inplane_distance = 1.0
+        expected_layer_separation = 1307.4
+    elif model_name == "duecker_ET_model":
+        # custom pos_dict branch; this model has no drives of its own, so add a
+        # simple proximal evoked drive targeting every one of its cell types
+        net = duecker_ET_model(mesh_shape=mesh_shape)
+        net.add_evoked_drive(
+            "evprox_test",
+            mu=20.0,
+            sigma=3.0,
+            numspikes=1,
+            location="proximal",
+            weights_ampa={cell_type: 0.01 for cell_type in net.cell_types},
+            synaptic_delays={cell_type: 0.1 for cell_type in net.cell_types},
+        )
+        expected_inplane_distance = 1.0
+        expected_layer_separation = 1307.4
+    else:
+        # custom pos_dict branch, with a non-default grid, so that the values which
+        # get restored are demonstrably the *derived* ones and not the hard-coded
+        # Network defaults
+        expected_inplane_distance = 2.5
+        expected_layer_separation = 900.0
+        layer_dict = _create_cell_coords(
+            n_pyr_x=mesh_shape[0],
+            n_pyr_y=mesh_shape[1],
+            z_coord=expected_layer_separation,
+            inplane_distance=expected_inplane_distance,
+        )
+        custom_cell_types = {
+            "L2_pyramidal": {
+                "cell_object": pyramidal(cell_name="L2_pyramidal"),
+                "cell_metadata": {
+                    "morpho_type": "pyramidal",
+                    "electro_type": "excitatory",
+                    "zdist_origin": 1,
+                    "layer": "2",
+                    "measure_dipole": True,
+                    "reference": "https://doi.org/10.7554/eLife.51214",
+                },
+            },
+        }
+        custom_pos_dict = {
+            "L2_pyramidal": layer_dict["L2_bottom"],
+            "origin": layer_dict["origin"],
+        }
+        net = Network(
+            read_params(params_fname),
+            pos_dict=custom_pos_dict,
+            cell_types=custom_cell_types,
+        )
+        net.add_evoked_drive(
+            "evprox_test",
+            mu=20.0,
+            sigma=3.0,
+            numspikes=1,
+            location="proximal",
+            weights_ampa={cell_type: 0.01 for cell_type in net.cell_types},
+            synaptic_delays={cell_type: 0.1 for cell_type in net.cell_types},
+        )
+
+    # The snapshot taken at construction time must match the network's live state
+    assert np.isclose(net._original_inplane_distance, expected_inplane_distance)
+    assert np.isclose(net._original_layer_separation, expected_layer_separation)
+    assert np.isclose(net._inplane_distance, expected_inplane_distance)
+    assert np.isclose(net._layer_separation, expected_layer_separation)
+
+    original_pos_dict = deepcopy(net.pos_dict)
+
+    # A single update-then-reset round trip restores everything
+    # ----------------------------------------------------------------------------------
+    net.update_cell_positions(
+        inplane_distance=expected_inplane_distance * 3.7,
+        layer_separation=expected_layer_separation * 0.6,
+    )
+    assert not np.isclose(net._inplane_distance, expected_inplane_distance)
+    assert not np.isclose(net._layer_separation, expected_layer_separation)
+
+    net._reset_to_original_cell_positions()
+    assert np.isclose(net._inplane_distance, expected_inplane_distance)
+    assert np.isclose(net._layer_separation, expected_layer_separation)
+    assert set(net.pos_dict.keys()) == set(original_pos_dict.keys())
+    for key in original_pos_dict:
+        assert_allclose(np.array(net.pos_dict[key]), np.array(original_pos_dict[key]))
+
+    # Repeated resets are idempotent, and resetting works after several updates
+    # ----------------------------------------------------------------------------------
+    net._reset_to_original_cell_positions()
+    assert set(net.pos_dict.keys()) == set(original_pos_dict.keys())
+    for key in original_pos_dict:
+        assert_allclose(np.array(net.pos_dict[key]), np.array(original_pos_dict[key]))
+
+    net.update_cell_positions(inplane_distance=7.0)
+    net.update_cell_positions(layer_separation=2000.0)
+    net.update_cell_positions(inplane_distance=0.5, layer_separation=42.0)
+    net._reset_to_original_cell_positions()
+    assert np.isclose(net._inplane_distance, expected_inplane_distance)
+    assert np.isclose(net._layer_separation, expected_layer_separation)
+    assert set(net.pos_dict.keys()) == set(original_pos_dict.keys())
+    for key in original_pos_dict:
+        assert_allclose(np.array(net.pos_dict[key]), np.array(original_pos_dict[key]))
+
+    # Test that drives are repositioned correctly by _reset_to_original_cell_positions.
+    # ----------------------------------------------------------------------------------
+    assert len(net.external_drives) > 0
+
+    original_origin = deepcopy(net.pos_dict["origin"])
+    original_drive_pos = {
+        drive_name: deepcopy(net.pos_dict[drive_name])
+        for drive_name in net.external_drives
+    }
+
+    net.update_cell_positions(inplane_distance=5.0, layer_separation=500.0)
+    # drives sit at the origin, so they must have moved along with it
+    for drive_name in net.external_drives:
+        assert not np.allclose(
+            np.array(net.pos_dict[drive_name]), np.array(original_drive_pos[drive_name])
+        )
+
+    net._reset_to_original_cell_positions()
+    assert_allclose(np.array(net.pos_dict["origin"]), np.array(original_origin))
+    for drive_name in net.external_drives:
+        assert_allclose(
+            np.array(net.pos_dict[drive_name]),
+            np.array(original_drive_pos[drive_name]),
+        )
+        # every drive cell must sit exactly at the restored origin
+        for drive_cell_pos in net.pos_dict[drive_name]:
+            assert_allclose(np.array(drive_cell_pos), np.array(original_origin))
+
+    # A drive added *after* construction is not in the original snapshot, but must
+    # still be present and repositioned to the restored origin after a reset
+    net.update_cell_positions(inplane_distance=9.0)
+    net.add_evoked_drive(
+        "evprox_late",
+        mu=20.0,
+        sigma=3.0,
+        numspikes=1,
+        location="proximal",
+        weights_ampa={cell_type: 0.01 for cell_type in net.cell_types},
+        synaptic_delays={cell_type: 0.1 for cell_type in net.cell_types},
+    )
+    net._reset_to_original_cell_positions()
+    assert "evprox_late" in net.pos_dict
+    assert (
+        len(net.pos_dict["evprox_late"])
+        == net.external_drives["evprox_late"]["n_drive_cells"]
+    )
+    for drive_cell_pos in net.pos_dict["evprox_late"]:
+        assert_allclose(np.array(drive_cell_pos), np.array(original_origin))
 
 
 def test_network_drives():
