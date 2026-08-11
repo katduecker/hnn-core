@@ -844,10 +844,10 @@ def plot_spikes_raster(
             l2_dipole = l2_dipole * 0.95
 
         # Shift the dipole positions to overlay the correct cell types
-        l2_dipole = -l2_dipole + abs(raster_quarterpoint)
+        l2_dipole = -l2_dipole + abs(raster_quarterpoint)#+l2_dipole.mean()
         # if abs(min(l5_dipole)) > abs(max(l5_dipole)):
         #     print('min larger max')
-        l5_dipole = -l5_dipole + abs(raster_midpoint) + abs(raster_quarterpoint)
+        l5_dipole = -l5_dipole + abs(raster_midpoint) + abs(raster_quarterpoint) #+ l5_dipole.mean()
         # if abs(min(l5_dipole)) < abs(max(l5_dipole)):
         # l5_dipole = -l5_dipole + abs(raster_midpoint) + abs(raster_quarterpoint)
 

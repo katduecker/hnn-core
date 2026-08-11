@@ -726,68 +726,40 @@ def duecker_ET_model(
 
     src_cell = "L2_inhibitory"
     lamtha = 6.125
-    receptor = "gabaa"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    loc = "soma"
-    net.add_connection(
-        src_cell,
-        target_cell,
-        loc,
-        receptor,
-        weight,
-        delay,
-        lamtha,
-        allow_autapses=False,
-    )
 
-    receptor = "gabab"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    loc = "soma"
-    net.add_connection(
-        src_cell,
-        target_cell,
-        loc,
-        receptor,
-        weight,
-        delay,
-        lamtha,
-        allow_autapses=False,
-    )
+    for receptor in ["gabaa", "gabab"]:
+        key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
+        weight = params[key]
+        loc = "soma"
+        net.add_connection(
+            src_cell,
+            target_cell,
+            loc,
+            receptor,
+            weight,
+            delay,
+            lamtha,
+            allow_autapses=False,
+        )
 
     # xx -> layer5 Basket
     src_cell = "L5_inhibitory"
     target_cell = "L5_inhibitory"
     lamtha = 6.125
     loc = "soma"
-    receptor = "gabaa"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    net.add_connection(
-        src_cell,
-        target_cell,
-        loc,
-        receptor,
-        weight,
-        delay,
-        lamtha,
-        allow_autapses=False,
-    )
-
-    receptor = "gabab"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    net.add_connection(
-        src_cell,
-        target_cell,
-        loc,
-        receptor,
-        weight,
-        delay,
-        lamtha,
-        allow_autapses=False,
-    )
+    for receptor in ["gabaa", "gabab"]:
+        key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
+        weight = params[key]
+        net.add_connection(
+            src_cell,
+            target_cell,
+            loc,
+            receptor,
+            weight,
+            delay,
+            lamtha,
+            allow_autapses=False,
+        )
 
     src_cell = "L5_pyramidal"
     lamtha = 6.125 * 0.8  # shorter space constant (Campagnola, 2022, mice data)
