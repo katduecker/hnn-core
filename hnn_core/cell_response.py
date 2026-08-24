@@ -337,24 +337,27 @@ class CellResponse(object):
                     np.mean(gid_spike_rate.mean(axis=1)) if n_cells > 0 else 0.0
                 )
             if mean_type == "trial":
-                spike_rates[cell_type] = (
-                    np.mean(gid_spike_rate, axis=1).tolist()
-                    if n_cells > 0
-                    else [0.0] * n_trials
-                )
+                if n_cells > 0:
+                    spike_rates[cell_type] = np.mean(gid_spike_rate, axis=1).tolist()
+                else:
+                    spike_rates[cell_type] = [0.0] * n_trials
+
             if mean_type == "cell":
-                spike_rates[cell_type] = [
-                    gid_trial_rate.tolist() for gid_trial_rate in gid_spike_rate
-                ]
+                if n_cells > 0:
+                    spike_rates[cell_type] = [
+                        gid_trial_rate.tolist() for gid_trial_rate in gid_spike_rate
+                    ]
+                else:
+                    spike_rates[cell_type] = [[0.0] for _ in range(n_trials)]
 
         return spike_rates
 
-    def rate_over_time(self, window_length_ms, cell_types, trial_idx):
+    def rate_over_time(self, window_length, cell_types, trial_idx):
         """Mean spike rates (Hz) by cell type over time.
 
         Parameters
         ----------
-        window_length_ms : int | float
+        window_length : int | float
             Length of the sliding window over which firing rates are calculated, in ms.
         cell_types : list | str
             Cell types for which firing rates are calculated.
@@ -369,7 +372,7 @@ class CellResponse(object):
             Includes firing rates over time for each cell type and trial.
         """
 
-        window_length_samples = window_length_ms * 1 / np.diff(self.times)[0]
+        window_length_samples = int(window_length / np.diff(self.times)[0])
         times = self.times
         dt = np.diff(times)[0]
         edges = np.concatenate(
@@ -405,7 +408,7 @@ class CellResponse(object):
                     )[0]
                     rates_time[cell_type][trial] = (
                         np.convolve(spike_type_time, taper, "same")
-                        / (dt / 1000)
+                        / (dt / 1e3)  # conversion of dt from ms to s (to get 1/s = Hz)
                         / n_cells
                     )
 
@@ -472,7 +475,7 @@ class CellResponse(object):
 
     def plot_firing_rate_time(
         self,
-        window_length_ms,
+        window_length,
         trial_idx=None,
         ax=None,
         show=True,
@@ -485,7 +488,7 @@ class CellResponse(object):
 
         Parameters
         ----------
-        window_length_ms : int | float
+        window_length : int | float
             Length of the sliding window over which mean rates are calculated, in ms.
         trial_idx : int | list of int | None
             Index of trials to be plotted. If None, mean rate over trials is plotted,
@@ -549,7 +552,7 @@ class CellResponse(object):
 
         # calculate firing rates
         fr_cell_types = self.rate_over_time(
-            window_length_ms=window_length_ms,
+            window_length=window_length,
             cell_types=cell_types,
             trial_idx=trial_idx,
         )

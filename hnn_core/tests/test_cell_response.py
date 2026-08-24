@@ -196,7 +196,54 @@ def test_cell_response(tmp_path, input_metadata):
         "L2_basket": [[test_rate], [0.0]],
     }
 
+    # repeat test for case in which one cell (L5 basket) does not spike -> L5_basket rate should be 0
+    spike_times = [[2.3456, 7.89], [4.2812, 93.2]]
+    spike_gids = [[1, 3], [5]]
+    spike_types = [["L2_pyramidal", "L2_basket"], ["L5_pyramidal"]]
+    tstart, tstop, fs = 0.1, 98.4, 1000.0
+
+    test_rate = (1 / (tstop - tstart)) * 1000
+
+    sim_times = np.arange(tstart, tstop, 1 / fs)
+    gid_ranges = {
+        "L2_pyramidal": range(1, 2),
+        "L2_basket": range(3, 4),
+        "L5_pyramidal": range(5, 6),
+        "L5_basket": range(7, 8),
+    }
+    default_cell_type_names = ["L2_basket", "L2_pyramidal", "L5_basket", "L5_pyramidal"]
+    cell_response = CellResponse(
+        cell_type_names=default_cell_type_names,
+        cell_type_metadata=input_metadata,
+        spike_times=spike_times,
+        spike_gids=spike_gids,
+        spike_types=spike_types,
+        times=sim_times,
+    )
+
+    assert cell_response.mean_rates(tstart=tstart, tstop=tstop) == {
+        "L2_basket": test_rate / 2,
+        "L2_pyramidal": test_rate / 2,
+        "L5_basket": 0.0,
+        "L5_pyramidal": test_rate / 2,
+    }
+
+    assert cell_response.mean_rates(tstart=tstart, tstop=tstop, mean_type="trial") == {
+        "L2_basket": [test_rate, 0.0],
+        "L2_pyramidal": [test_rate, 0.0],
+        "L5_basket": [0.0, 0.0],
+        "L5_pyramidal": [0.0, test_rate],
+    }
+
+    assert cell_response.mean_rates(tstart=tstart, tstop=tstop, mean_type="cell") == {
+        "L2_basket": [[test_rate], [0.0]],
+        "L2_pyramidal": [[test_rate], [0.0]],
+        "L5_basket": [[0.0], [0.0]],
+        "L5_pyramidal": [[0.0], [test_rate]],
+    }
+
     # Write spike file with no 'types' column
+    spike_types = [["L2_pyramidal", "L2_basket"], ["L5_pyramidal", "L5_basket"]]
     for fname in sorted(glob(str(tmp_path / "spk_*.txt"))):
         times_gids_only = np.loadtxt(fname, dtype=str)[:, (0, 1)]
         np.savetxt(fname, times_gids_only, delimiter="\t", fmt="%s")

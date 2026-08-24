@@ -510,7 +510,7 @@ class TestCellResponsePlotters:
                 )
                 for cell_type in cell_types
             ]
-            axes = cell_response.plot_firing_rate_time(window_length_ms=10, show=False)
+            axes = cell_response.plot_firing_rate_time(window_length=10, show=False)
             colors, labels = _get_line_hex_colors(axes)
             assert labels == cell_types
             assert colors == metadata_colors
@@ -518,7 +518,7 @@ class TestCellResponsePlotters:
         # Custom hex colors as a list, one per cell type
         custom_colors = ["#daf7a6", "#ffc300", "#ff5733", "#c70039"]
         axes = cell_response.plot_firing_rate_time(
-            window_length_ms=10, show=False, colors=custom_colors
+            window_length=10, show=False, colors=custom_colors
         )
         colors, _ = _get_line_hex_colors(axes)
         assert colors == custom_colors
@@ -527,7 +527,7 @@ class TestCellResponsePlotters:
         custom_colors = ["skyblue", "maroon", "gold", "hotpink"]
         color_map = matplotlib.colors.get_named_colors_mapping()
         axes = cell_response.plot_firing_rate_time(
-            window_length_ms=10, show=False, colors=custom_colors
+            window_length=10, show=False, colors=custom_colors
         )
         colors, _ = _get_line_hex_colors(axes)
         assert colors == [color_map[color].lower() for color in custom_colors]
@@ -540,18 +540,16 @@ class TestCellResponsePlotters:
             "L5_pyramidal": "#c70039",
         }
         axes = cell_response.plot_firing_rate_time(
-            window_length_ms=10, show=False, colors=dict_mapping
+            window_length=10, show=False, colors=dict_mapping
         )
         colors, labels = _get_line_hex_colors(axes)
         assert colors == [dict_mapping[label] for label in labels]
 
         # Changing the color of only one cell type leaves the others untouched
-        default_axes = cell_response.plot_firing_rate_time(
-            window_length_ms=10, show=False
-        )
+        default_axes = cell_response.plot_firing_rate_time(window_length=10, show=False)
         default_colors, _ = _get_line_hex_colors(default_axes)
         axes = cell_response.plot_firing_rate_time(
-            window_length_ms=10, show=False, colors={"L2_pyramidal": "#daf7a6"}
+            window_length=10, show=False, colors={"L2_pyramidal": "#daf7a6"}
         )
         colors, labels = _get_line_hex_colors(axes)
         assert colors[labels.index("L2_pyramidal")] == "#daf7a6"
@@ -567,25 +565,25 @@ class TestCellResponsePlotters:
         # Invalid trial_idx type raises a TypeError
         with pytest.raises(TypeError, match="trial_idx must be an instance of"):
             cell_response.plot_firing_rate_time(
-                window_length_ms=10, trial_idx="blah", show=False
+                window_length=10, trial_idx="blah", show=False
             )
 
         # Invalid cell_types type raises a TypeError
         with pytest.raises(TypeError, match="cell_types must be an instance of"):
             cell_response.plot_firing_rate_time(
-                window_length_ms=10, cell_types="L5_pyramidal", show=False
+                window_length=10, cell_types="L5_pyramidal", show=False
             )
 
         # Unknown cell type raises a ValueError
         with pytest.raises(ValueError, match="Invalid cell types provided."):
             cell_response.plot_firing_rate_time(
-                window_length_ms=10, cell_types=["bad_cell_type"], show=False
+                window_length=10, cell_types=["bad_cell_type"], show=False
             )
 
         # Invalid colors type raises a TypeError
         with pytest.raises(TypeError, match="color must be an instance of"):
             cell_response.plot_firing_rate_time(
-                window_length_ms=10, colors="blue", show=False
+                window_length=10, colors="blue", show=False
             )
 
         # Wrong number of colors as a list raises a ValueError
@@ -594,13 +592,13 @@ class TestCellResponsePlotters:
         for colors in [too_few, too_many]:
             with pytest.raises(ValueError, match="Number of colors must be equal to"):
                 cell_response.plot_firing_rate_time(
-                    window_length_ms=10, show=False, colors=colors
+                    window_length=10, show=False, colors=colors
                 )
 
         # An unknown cell type in a colors dict raises a ValueError
         with pytest.raises(ValueError, match="Invalid cell types provided."):
             cell_response.plot_firing_rate_time(
-                window_length_ms=10, show=False, colors={"bad_cell_type": "#daf7a6"}
+                window_length=10, show=False, colors={"bad_cell_type": "#daf7a6"}
             )
 
         # A single axis cannot hold multiple cell types
@@ -608,16 +606,14 @@ class TestCellResponsePlotters:
         with pytest.raises(
             ValueError, match="ax and cell_types must have the same len"
         ):
-            cell_response.plot_firing_rate_time(window_length_ms=10, ax=ax, show=False)
+            cell_response.plot_firing_rate_time(window_length=10, ax=ax, show=False)
 
         # An array of axes must match the number of cell types
         _, axes = plt.subplots(2, 1)
         with pytest.raises(
             ValueError, match="ax and cell_types must have the same len"
         ):
-            cell_response.plot_firing_rate_time(
-                window_length_ms=10, ax=axes, show=False
-            )
+            cell_response.plot_firing_rate_time(window_length=10, ax=axes, show=False)
 
     def test_spikes_raster_dipole_overlay(self, base_simulation_spikes):
         net, dpls = base_simulation_spikes
