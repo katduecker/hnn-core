@@ -843,13 +843,18 @@ def plot_spikes_raster(
         while (max(l2_dipole) - min(l2_dipole)) > abs(raster_midpoint):
             l2_dipole = l2_dipole * 0.95
 
+        # dipoles with a moment << number of cells (270) will present as flat lines
+        # scale dipole such that waveform can be inspected properly alongside spiking
+        amp_max = max(max(l5_dipole), max(l2_dipole))
+        amp_min = min(min(l5_dipole), min(l5_dipole))
+        scale_fact = (10**np.floor(np.log10(raster_max)))/(amp_max-amp_min)
+        
+        l2_dipole *= scale_fact
+        l5_dipole *= scale_fact
+
         # Shift the dipole positions to overlay the correct cell types
         l2_dipole = -l2_dipole + abs(raster_quarterpoint)
-        # if abs(min(l5_dipole)) > abs(max(l5_dipole)):
-        #     print('min larger max')
-        l5_dipole = -l5_dipole + abs(raster_midpoint) + abs(raster_quarterpoint)
-        # if abs(min(l5_dipole)) < abs(max(l5_dipole)):
-        # l5_dipole = -l5_dipole + abs(raster_midpoint) + abs(raster_quarterpoint)
+        l5_dipole = -l5_dipole + abs(raster_midpoint) + np.mean(l5_dipole) + abs(raster_quarterpoint)
 
         # Draw the dipole plots
         (l2_line,) = ax.plot(
