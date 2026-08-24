@@ -75,6 +75,92 @@ default_drive_colors = {
 }
 
 
+def _validate_params_for_model(
+    net,
+    params,
+    model_variant,
+    alt_variants=(),
+    require_variant=False,
+    excluded_cells=(),
+):
+    """Check that a param file matches the network model it is used for.
+
+    Sets ``net._model_variant`` if all checks pass.
+
+    Parameters
+    ----------
+    net : Instance of Network object
+        The network the parameters are used for.
+    params : dict
+        The parameters the network was built from.
+    model_variant : str
+        Name of the network model, e.g. 'duecker_ET_model'. The
+        'model_variant' entry of `params` must be an abbreviation of this
+        name (or of one of `alt_variants`).
+    alt_variants : tuple of str
+        Further model names that are accepted in the 'model_variant' entry of
+        `params`, e.g. the deprecated name of a model. Default: ()
+    require_variant : bool
+        If True, raise if `params` does not define 'model_variant'. Used for
+        models that share no parameters with the default model, and would
+        otherwise silently fall back to default values. Default: False
+    excluded_cells : tuple of str
+        Short names of cells that are *not* part of this network, e.g.
+        ('L2Basket', 'L5Basket') for a model in which basket cells are
+        replaced. Parameters for these cells are rejected. Default: ()
+
+    Raises
+    ------
+    ValueError
+        If the model variant does not match, if parameters are missing for a
+        cell type of the network, or if parameters are found for a cell type
+        that is not part of the network.
+    """
+    check_var = params.get("model_variant", None)
+    if check_var is None:
+        if require_variant:
+            raise ValueError(
+                f"'model_variant' is required for simulations with "
+                f"{model_variant}. If you are sure that you are using the "
+                f"correct parameters, add 'model_variant': '{model_variant}', "
+                "to the first line of the param .json file."
+            )
+    elif not any(
+        valid_variant.startswith(check_var)
+        for valid_variant in (model_variant,) + tuple(alt_variants)
+    ):
+        raise ValueError(
+            f"Parameters for {check_var} used for {model_variant}."
+            " Ensure that your param .json file matches the network."
+        )
+    net._model_variant = model_variant
+
+    # check that the params define the cell types of this network
+    missing_cells = [
+        _short_name(cell_name)
+        for cell_name in net.cell_types
+        if not any(_short_name(cell_name) in key for key in params)
+    ]
+    if missing_cells:
+        raise ValueError(
+            f"No parameters found for {', '.join(missing_cells)}."
+            " Ensure that your param .json file matches the network."
+        )
+
+    # check that the params don't define cell types this network replaced
+    unexpected_cells = [
+        cell_name
+        for cell_name in excluded_cells
+        if any(cell_name in key for key in params)
+    ]
+    if unexpected_cells:
+        raise ValueError(
+            f"Parameters found for {', '.join(unexpected_cells)}, which"
+            f" are not part of {model_variant}. Ensure that your"
+            " param .json file matches the network."
+        )
+
+
 def neymotin_2020_model(
     params=None,
     add_drives_from_params=False,
@@ -185,31 +271,14 @@ def neymotin_2020_model(
 
     delay = net.delay
 
-    # ensure model variant matches current model
-    check_var = params.get("model_variant", None)
-    if check_var is None or any(
-        model_str.startswith(check_var)
-        for model_str in ["neymotin_2020_model", "jones_2009_model"]
-    ):
-        net._model_variant = "neymotin_2020_model"
-    else:
-        raise ValueError(
-            f"Parameters for {check_var} used for neymotin_2020_model (jones_2000_model)."
-            " Ensure that your param .json file matches network model."
-        )
-    net._stim_prefix = params.get("stim_prefix", "default")
-
-    # check that the params define the cell types of this network
-    missing_cells = [
-        cell_name
-        for cell_name in ["L2Pyr", "L5Pyr", "L2Basket", "L5Basket"]
-        if not any(cell_name in key for key in params)
-    ]
-    if missing_cells:
-        raise ValueError(
-            f"No parameters found for {', '.join(missing_cells)}."
-            " Ensure that your param .json file matches the network."
-        )
+    # ensure model variant and cell types match current model
+    _validate_params_for_model(
+        net,
+        params,
+        "neymotin_2020_model",
+        alt_variants=("jones_2009_model",),
+    )
+    net._sim_prefix = params.get("sim_prefix", "default")
 
     # source of synapse is always at soma
 
@@ -451,14 +520,7 @@ def law_2021_model(
         mesh_shape=mesh_shape,
     )
     # check variant
-    check_var = params.get("model_variant", None)
-    if check_var is None or "law_2021_model".startswith(check_var):
-        net._model_variant = "law_2021_model"
-    else:
-        raise ValueError(
-            f"Parameters for {check_var} used for law_2021_model."
-            " Ensure that your param .json file matches the network."
-        )
+    _validate_params_for_model(net, params, "law_2021_model")
 
     # Update biophysics (increase gabab duration of inhibition)
     net.cell_types["L2_pyramidal"]["cell_object"].synapses["gabab"]["tau1"] = 45.0
@@ -553,15 +615,8 @@ def calcium_model(
     )
 
     # check variant
-    check_var = params.get("model_variant", None)
-    if check_var is None or "calcium_model".startswith(check_var):
-        net._model_variant = "calcium_model"
-    else:
-        raise ValueError(
-            f"Parameters for {check_var} used for calcium_model."
-            " Ensure that your param .json file matches the network."
-        )
-    net._stim_prefix = params.get("stim_prefix", "default")
+    _validate_params_for_model(net, params, "calcium_model")
+    net._sim_prefix = params.get("sim_prefix", "default")
 
     # Replace L5 pyramidal cell template with updated calcium
     cell_name = "L5_pyramidal"
@@ -585,7 +640,9 @@ def duecker_ET_model(
 
     cell_types = {
         "L2_inhibitory": {
-            "cell_object": human_gen_interneuron(cell_name="L2Inh", layer=2),
+            "cell_object": human_gen_interneuron(
+                cell_name=_short_name("L2_inhibitory"), layer=2
+            ),
             "cell_metadata": {
                 "morpho_type": "interneuron",
                 "electro_type": "inhibitory",
@@ -598,7 +655,7 @@ def duecker_ET_model(
             },
         },
         "L2_pyramidal": {
-            "cell_object": pyramidal_humanL23(cell_name="L2Pyr"),
+            "cell_object": pyramidal_humanL23(cell_name=_short_name("L2_pyramidal")),
             "cell_metadata": {
                 "morpho_type": "pyramidal",
                 "electro_type": "excitatory",
@@ -611,7 +668,9 @@ def duecker_ET_model(
             },
         },
         "L5_inhibitory": {
-            "cell_object": human_gen_interneuron(cell_name="L5Inh", layer=5),
+            "cell_object": human_gen_interneuron(
+                cell_name=_short_name("L5_inhibitory"), layer=5
+            ),
             "cell_metadata": {
                 "morpho_type": "interneuron",
                 "electro_type": "inhibitory",
@@ -624,7 +683,7 @@ def duecker_ET_model(
             },
         },
         "L5_pyramidal": {
-            "cell_object": pyramidal_humanL5ET(cell_name="L5Pyr"),
+            "cell_object": pyramidal_humanL5ET(cell_name=_short_name("L5_pyramidal")),
             "cell_metadata": {
                 "morpho_type": "pyramidal",
                 "electro_type": "excitatory",
@@ -665,47 +724,16 @@ def duecker_ET_model(
         cell_types=cell_types,
     )
 
-    # check variant
-    check_var = params.get("model_variant", None)
-    if check_var is None:
-        raise ValueError(
-            "'model_variant' is required for simulations with duecker_ET_model. "
-            "If you are sure that you are using the correct parameters, "
-            "add 'model_variant': 'duecker_ET_model', to the first line of "
-            "the param .json file."
-        )
-    elif "duecker_ET_model".startswith(check_var):
-        net._model_variant = "duecker_ET_model"
-    else:
-        raise ValueError(
-            f"Parameters for {check_var} used for duecker_ET_model."
-            " Ensure that your param .json file matches the network."
-        )
-    net._stim_prefix = params.get("stim_prefix", "duecker_ET_default")
-
-    # check that the params define the cell types of this network. Basket
-    # cells are replaced by interneurons in duecker_ET_model
-    missing_cells = [
-        cell_name
-        for cell_name in ["L2Pyr", "L5Pyr", "L2Inh", "L5Inh"]
-        if not any(cell_name in key for key in params)
-    ]
-    if missing_cells:
-        raise ValueError(
-            f"No parameters found for {', '.join(missing_cells)}."
-            " Ensure that your param .json file matches network."
-        )
-    basket_cells = [
-        cell_name
-        for cell_name in ["L2Basket", "L5Basket"]
-        if any(cell_name in key for key in params)
-    ]
-    if basket_cells:
-        raise ValueError(
-            f"Parameters found for {', '.join(basket_cells)}, which"
-            " are not part of duecker_ET_model. Ensure that your"
-            " param .json file matches network."
-        )
+    # check variant and cell types. Basket cells are replaced by
+    # interneurons in duecker_ET_model, so their parameters are rejected
+    _validate_params_for_model(
+        net,
+        params,
+        "duecker_ET_model",
+        require_variant=True,
+        excluded_cells=("L2Basket", "L5Basket"),
+    )
+    net._sim_prefix = params.get("sim_prefix", "duecker_ET_default")
 
     delay = net.delay
 
