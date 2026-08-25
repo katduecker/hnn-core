@@ -321,7 +321,11 @@ class CellResponse(object):
         marker_size=5.0,
         dpl=None,
         overlay_dipoles=False,
-        **kwargs,
+        xticks=None,
+        yticks=None,
+        xlabel="Time (ms)",
+        ylabel="Neuron index",
+        title=None
     ):
         """Plot the aggregate spiking activity according to cell type.
 
@@ -349,6 +353,18 @@ class CellResponse(object):
         overlay_dipoles : bool
             If True, overlay the layer-specific dipole data on the
             raster plot
+        xticks : list | np.array | None
+            Ticks on x-axis. If None, ticks are created by matplotlib.
+        yticks: list | np.array | None
+            Ticks on y-axis,  If None, ticks are created by matplotlib.
+        xlabel: str | None
+            x-axis label
+        ylabel: str | None
+            y-axis label
+        title: str | None
+            figure title
+
+
 
         Returns
         -------
@@ -366,7 +382,11 @@ class CellResponse(object):
             marker_size=marker_size,
             dpl=dpl,
             overlay_dipoles=overlay_dipoles,
-            **kwargs,
+            xticks=xticks,
+            yticks=yticks,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            title=title
         )
 
     def plot_spikes_hist(

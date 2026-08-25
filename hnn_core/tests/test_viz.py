@@ -528,6 +528,13 @@ class TestCellResponsePlotters:
 
         assert updated_raster_yrange <= initial_raster_yrange
 
+    # smoke test for raster plot input arguments
+    def test_spikes_raster_input_args(self, base_simulation_spikes):
+
+        net, _ = base_simulation_spikes
+        net.cell_response.plot_spikes_raster(xticks=np.arange(5), yticks=np.arange(5))
+        net.cell_response.plot_spikes_raster(xticks=[1,2,3], yticks=[1,2,3])
+        net.cell_response.plot_spikes_raster(xlabel='time', ylabel='cells ID', title='spikes raster')
 
 def test_network_plotter_init(setup_net):
     """Test init keywords of NetworkPlotter class."""

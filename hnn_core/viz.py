@@ -656,7 +656,11 @@ def plot_spikes_raster(
     marker_size=1.0,
     dpl=None,
     overlay_dipoles=False,
-    **kwargs,
+    xticks=None,
+    yticks=None,
+    xlabel="Time (ms)",
+    ylabel="Neuron index",
+    title=None
 ):
     """Plot the aggregate spiking activity according to cell type.
 
@@ -686,7 +690,16 @@ def plot_spikes_raster(
     overlay_dipoles : bool
         If True, overlay the layer-specific dipole data on the
         raster plot
-    kwargs : option to include xticks, yticks, xlabel, ylabel and title for publication-ready figures.
+    xticks : list | np.array | None
+        Ticks on x-axis. If None, ticks are created by matplotlib.
+    yticks: list | np.array | None
+        Ticks on y-axis,  If None, ticks are created by matplotlib.
+    xlabel: str | None
+        x-axis label
+    ylabel: str | None
+        y-axis label
+    title: str | None
+        figure title
 
 
     Returns
@@ -847,14 +860,19 @@ def plot_spikes_raster(
         # scale dipole such that waveform can be inspected properly alongside spiking
         amp_max = max(max(l5_dipole), max(l2_dipole))
         amp_min = min(min(l5_dipole), min(l5_dipole))
-        scale_fact = (10**np.floor(np.log10(raster_max)))/(amp_max-amp_min)
-        
+        scale_fact = (10 ** np.floor(np.log10(raster_max))) / (amp_max - amp_min)
+
         l2_dipole *= scale_fact
         l5_dipole *= scale_fact
 
         # Shift the dipole positions to overlay the correct cell types
         l2_dipole = -l2_dipole + abs(raster_quarterpoint)
-        l5_dipole = -l5_dipole + abs(raster_midpoint) + np.mean(l5_dipole) + abs(raster_quarterpoint)
+        l5_dipole = (
+            -l5_dipole
+            + abs(raster_midpoint)
+            + np.mean(l5_dipole)
+            + abs(raster_quarterpoint)
+        )
 
         # Draw the dipole plots
         (l2_line,) = ax.plot(
@@ -896,24 +914,16 @@ def plot_spikes_raster(
         ax.add_artist(spike_legend)
 
     # set y-axis ticks and tick labels
-    yticks = kwargs.get("yticks", None)
     if yticks is not None:
         ax.set_yticks(yticks)
         ax.set_yticklabels(yticks)
     else:
         ax.tick_params(axis="y", length=0)
 
-    ylabel = kwargs.get("ylabel", "Cell ID")
     ax.set_ylabel(ylabel)
-    xlabel = kwargs.get("xlabel", "Time (ms)")
     ax.set_xlabel(xlabel)
 
     # add title
-    if overlay_dipoles:
-        title = kwargs.get("title", "Raster Plot with Layer-Specific Dipole Overlays")
-    else:
-        title = kwargs.get("title", "Raster Plot")
-
     ax.set_title(title)
 
     if len(cell_response.times) > 0:
@@ -922,7 +932,6 @@ def plot_spikes_raster(
         ax.set_xlim(left=0)
     ax.set_xlim(left=0)
 
-    xticks = kwargs.get("xticks", None)
     if xticks is not None:
         ax.set_xticks(xticks)
     plt_show(show)
