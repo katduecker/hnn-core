@@ -160,6 +160,62 @@ def _validate_params_for_model(
             " param .json file matches the network."
         )
 
+def _baseline_renormalize_neymotin2020(dpl, N_pyr_x, N_pyr_y):
+    """Only baseline renormalize if the units are fAm.
+
+    Parameters
+    ----------
+    N_pyr_x : int
+        Nr of cells (x)
+    N_pyr_y : int
+        Nr of cells (y)
+    """
+    # N_pyr cells in grid. This is PER LAYER
+    N_pyr = N_pyr_x * N_pyr_y
+    # dipole offset calculation: increasing number of pyr
+    # cells (L2 and L5, simultaneously)
+    # with no inputs resulted in an aggregate dipole over the
+    # interval [50., 1000.] ms that
+    # eventually plateaus at -48 fAm. The range over this interval
+    # is something like 3 fAm
+    # so the resultant correction is here, per dipole
+    # dpl_offset = N_pyr * 50.207
+    dpl_offset = {
+        # these values will be subtracted
+        "L2": N_pyr * 0.0443,
+        "L5": N_pyr * -49.0502,
+        # 'L5': N_pyr * -48.3642,
+        # will be calculated next, this is a placeholder
+        # 'agg': None,
+    }
+    # L2 dipole offset can be roughly baseline shifted over
+    # the entire range of t
+    dpl.data["L2"] -= dpl_offset["L2"]
+    # L5 dipole offset should be different for interval [50., 500.]
+    # and then it can be offset
+    # slope (m) and intercept (b) params for L5 dipole offset
+    # uncorrected for N_cells
+    # these values were fit over the range [37., 750.)
+    m = 3.4770508e-3
+    b = -51.231085
+    # these values were fit over the range [750., 5000]
+    t1 = 750.0
+    m1 = 1.01e-4
+    b1 = -48.412078
+    # piecewise normalization
+    dpl.data["L5"][dpl.times <= 37.0] -= dpl_offset["L5"]
+    dpl.data["L5"][(dpl.times > 37.0) & (dpl.times < t1)] -= N_pyr * (
+        m * dpl.times[(dpl.times > 37.0) & (dpl.times < t1)] + b
+    )
+    dpl.data["L5"][dpl.times >= t1] -= N_pyr * (
+        m1 * dpl.times[dpl.times >= t1] + b1
+    )
+    # recalculate the aggregate dipole based on the baseline
+    # normalized ones
+    dpl.data["agg"] = dpl.data["L2"] + dpl.data["L5"]
+
+    return dpl
+
 
 def neymotin_2020_model(
     params=None,
@@ -268,6 +324,8 @@ def neymotin_2020_model(
         pos_dict=pos_dict,
         cell_types=cell_types,
     )
+
+    net._baseline_renormalize = _baseline_renormalize_neymotin2020
 
     delay = net.delay
 

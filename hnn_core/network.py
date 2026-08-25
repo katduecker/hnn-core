@@ -2415,6 +2415,10 @@ class Network:
 
         return standardized_data, n_drive_cells, source_to_gid_map
 
+    def _baseline_renormalize(self, dpl):
+        """"Placeholder for model-specific baseline renormalization"""
+        return dpl
+
 
 class _Connectivity(dict):
     """A class for containing the connectivity details of the network
