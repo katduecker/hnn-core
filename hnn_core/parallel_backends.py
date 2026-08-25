@@ -80,9 +80,9 @@ def _gather_trial_data(sim_data, net, n_trials, postproc, bsl_cor="jones"):
 
         N_pyr_x = net._N_pyr_x
         N_pyr_y = net._N_pyr_y
-        if bsl_cor == "jones":
+        if bsl_cor == "jones" or bsl_cor == "neymotin":
             if net._verbose:
-                print("Applying Jones baseline correction", flush=True)
+                print("Applying Neymotin, 2020 baseline correction", flush=True)
             dpl._baseline_renormalize(N_pyr_x, N_pyr_y)  # XXX cf. #270
 
         dpl._convert_fAm_to_nAm()  # always applied, cf. #264
