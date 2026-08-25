@@ -660,7 +660,7 @@ def plot_spikes_raster(
     yticks=None,
     xlabel="Time (ms)",
     ylabel="Neuron index",
-    title=None
+    title=None,
 ):
     """Plot the aggregate spiking activity according to cell type.
 

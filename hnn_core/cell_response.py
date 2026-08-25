@@ -325,7 +325,7 @@ class CellResponse(object):
         yticks=None,
         xlabel="Time (ms)",
         ylabel="Neuron index",
-        title=None
+        title=None,
     ):
         """Plot the aggregate spiking activity according to cell type.
 
@@ -386,7 +386,7 @@ class CellResponse(object):
             yticks=yticks,
             xlabel=xlabel,
             ylabel=ylabel,
-            title=title
+            title=title,
         )
 
     def plot_spikes_hist(
