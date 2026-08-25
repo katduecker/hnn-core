@@ -278,7 +278,6 @@ def neymotin_2020_model(
         "neymotin_2020_model",
         alt_variants=("jones_2009_model",),
     )
-    net._sim_prefix = params.get("sim_prefix", "default")
 
     # source of synapse is always at soma
 
@@ -733,7 +732,6 @@ def duecker_ET_model(
         require_variant=True,
         excluded_cells=("L2Basket", "L5Basket"),
     )
-    net._sim_prefix = params.get("sim_prefix", "duecker_ET_default")
 
     delay = net.delay
 
