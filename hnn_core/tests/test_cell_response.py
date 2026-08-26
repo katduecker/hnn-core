@@ -268,4 +268,46 @@ def test_cell_response(tmp_path, input_metadata):
             "L5_basket": range(6, 8),
         }
         cell_response = read_spikes(tmp_path / "spk_*.txt", gid_ranges=gid_ranges)
+
+    # A gid that spikes more than once within a single trial should have all
+    # of its spikes counted toward its rate (tests gid_counts > 1)
+    spike_times = [[1.0, 2.0, 3.0]]
+    spike_gids = [[1, 1, 3]]
+    spike_types = [["L2_pyramidal", "L2_pyramidal", "L2_basket"]]
+    tstart, tstop = 0.0, 10.0
+    gid_ranges = {
+        "L2_pyramidal": range(1, 2),
+        "L2_basket": range(3, 4),
+        "L5_pyramidal": range(5, 6),
+        "L5_basket": range(7, 8),
+    }
+    cell_response = CellResponse(
+        cell_type_names=default_cell_type_names,
+        cell_type_metadata=input_metadata,
+        spike_times=spike_times,
+        spike_gids=spike_gids,
+        spike_types=spike_types,
+    )
+
+    assert cell_response.mean_rates(tstart, tstop, gid_ranges) == {
+        "L2_pyramidal": 200.0,
+        "L2_basket": 100.0,
+        "L5_pyramidal": 0.0,
+        "L5_basket": 0.0,
+    }
+
+    assert cell_response.mean_rates(tstart, tstop, gid_ranges, mean_type="trial") == {
+        "L2_pyramidal": [200.0],
+        "L2_basket": [100.0],
+        "L5_pyramidal": [0.0],
+        "L5_basket": [0.0],
+    }
+
+    assert cell_response.mean_rates(tstart, tstop, gid_ranges, mean_type="cell") == {
+        "L2_pyramidal": [[200.0]],
+        "L2_basket": [[100.0]],
+        "L5_pyramidal": [[0.0]],
+        "L5_basket": [[0.0]],
+    }
+
     plt.close("all")
