@@ -355,16 +355,14 @@ class CellResponse(object):
             raster plot
         xticks : list | np.array | None
             Ticks on x-axis. If None, ticks are created by matplotlib.
-        yticks: list | np.array | None
+        yticks : list | np.array | None
             Ticks on y-axis,  If None, ticks are created by matplotlib.
-        xlabel: str | None
-            x-axis label
-        ylabel: str | None
-            y-axis label
-        title: str | None
-            figure title
-
-
+        xlabel : str, default: "Time (ms)"
+            The matplotlib x-axis label
+        ylabel : str, default: "Neuron index"
+            The matplotlib y-axis label
+        title : str | None
+            The matplotlib figure title
 
         Returns
         -------
