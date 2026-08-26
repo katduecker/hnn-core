@@ -1828,32 +1828,32 @@ class Network:
 
         Returns
         -------
-        normalized_amplitude : dict
+        resolved_amplitude : dict
             A dictionary where keys are cell types and values are the corresponding
             amplitude values.
         """
         if cell_type is not None:
-            normalized_amplitude = {cell_type: float(amplitude)}
+            resolved_amplitude = {cell_type: float(amplitude)}
         elif isinstance(amplitude, (int, float)):
             _amplitude_value = float(amplitude)
-            normalized_amplitude = dict()
+            resolved_amplitude = dict()
             if isinstance(gid, int):
                 _gid_type = self.gid_to_type(gid)
-                normalized_amplitude.setdefault(_gid_type, _amplitude_value)
+                resolved_amplitude.setdefault(_gid_type, _amplitude_value)
             elif isinstance(gid, list):
                 for _gid in gid:
                     _gid_type = self.gid_to_type(_gid)
-                    normalized_amplitude.setdefault(_gid_type, _amplitude_value)
+                    resolved_amplitude.setdefault(_gid_type, _amplitude_value)
             elif isinstance(gid, dict):
                 for _gid_type in gid.keys():
-                    normalized_amplitude.setdefault(_gid_type, _amplitude_value)
+                    resolved_amplitude.setdefault(_gid_type, _amplitude_value)
         elif isinstance(amplitude, dict):
             # Wrap this to prevent changes by reference
-            normalized_amplitude = dict(amplitude)
+            resolved_amplitude = dict(amplitude)
 
-        return normalized_amplitude
+        return resolved_amplitude
 
-    def _resolve_bias_gids_to_cell_types(self, normalized_amplitude, gid):
+    def _resolve_bias_gids_to_cell_types(self, resolved_amplitude, gid):
         """Resolve the ``gid`` argument of a tonic bias into a per-cell-type map.
 
         This routes every variant of the provided ``gid`` argument for
@@ -1863,57 +1863,57 @@ class Network:
 
         Parameters
         ----------
-        normalized_amplitude : dict
-            Dictionary resulting from ``Network._normalize_bias_amplitude`` where keys are
-            all the cell types we are interested in and the values are their
-            corresponding amplitude values.
+        resolved_amplitude : dict
+            Dictionary resulting from ``Network._resolve_bias_amplitudes_to_cell_types``
+            where keys are all the cell types we are interested in and the values are
+            their corresponding amplitude values.
         gid : int | list | dict
             The ``gid`` argument value as passed into ``Network.add_tonic_bias``.
-            Inside this normalize function, this is a required parameter, since it
+            Inside this resolve function, this is a required parameter, since it
             should inherit the default from ``Network.add_tonic_bias``.
 
         Returns
         -------
-        normalized_gid : dict
+        resolved_gid : dict
             A dictionary where keys are cell types and values are lists of gids
             belonging to that cell type.
         """
-        # First, let's initialize our future normalized_gid dictionary. Since everything
-        # has been validated, we can be sure that normalized_amplitude has all the cell
+        # First, let's initialize our future resolved_gid dictionary. Since everything
+        # has been validated, we can be sure that resolved_amplitude has all the cell
         # type keys we're interested in:
-        cell_types = list(normalized_amplitude.keys())
-        normalized_gid = {cell_type: [] for cell_type in cell_types}
+        cell_types = list(resolved_amplitude.keys())
+        resolved_gid = {cell_type: [] for cell_type in cell_types}
 
         if gid is None:
             for celltype in cell_types:
-                normalized_gid[celltype] = list(self.gid_ranges[celltype])
+                resolved_gid[celltype] = list(self.gid_ranges[celltype])
 
         elif isinstance(gid, int):
             # If there is only one gid, then there is only one cell type used
-            normalized_gid[cell_types[0]] = [gid]
+            resolved_gid[cell_types[0]] = [gid]
 
         elif isinstance(gid, list):
             if len(cell_types) == 1:
-                normalized_gid[cell_types[0]].extend(gid)
+                resolved_gid[cell_types[0]].extend(gid)
             else:
                 # Multiple biased cell types -- group each gid by the cell type it belongs
                 # to so the right amplitude is applied to the right cells.
                 for _gid in gid:
                     _gid_type = self.gid_to_type(_gid)
-                    normalized_gid[_gid_type].append(_gid)
+                    resolved_gid[_gid_type].append(_gid)
 
         elif isinstance(gid, dict):
-            # Explicit {cell_type: gid(s)} mapping -- normalize each value to a list.
+            # Explicit {cell_type: gid(s)} mapping -- resolve each value to a list.
             # We've already validated everything, so we can just iterate over the keys.
             for _cell_type, _gids in gid.items():
                 if isinstance(_gids, int):
-                    normalized_gid[_cell_type] = [_gids]
+                    resolved_gid[_cell_type] = [_gids]
                 elif isinstance(_gids, list):
-                    normalized_gid[_cell_type].extend(_gids)
+                    resolved_gid[_cell_type].extend(_gids)
                 elif _gids == "all":
-                    normalized_gid[_cell_type] = list(self.gid_ranges[_cell_type])
+                    resolved_gid[_cell_type] = list(self.gid_ranges[_cell_type])
 
-        return normalized_gid
+        return resolved_gid
 
     def _add_cell_type_bias(
         self,
@@ -2086,24 +2086,24 @@ class Network:
             cell_type=cell_type,
         )
 
-        # Normalize the amplitudes, so that we can ensure we always have a dictionary
+        # Resolve the amplitudes, so that we can ensure we always have a dictionary
         # mapping cell type to amplitude, regardless of the input argument style:
-        normalized_amplitude = self._resolve_bias_amplitudes_to_cell_types(
+        resolved_amplitude = self._resolve_bias_amplitudes_to_cell_types(
             amplitude,
             cell_type,
             gid,
         )
 
-        # Normalize the `gid` argument into a per-cell-type mapping so that gids are
+        # Resolve the `gid` argument into a per-cell-type mapping so that gids are
         # organized under the corresponding cell type. This converts all input argument
         # styles to the dictionary format used internally:
-        normalized_gid = self._resolve_bias_gids_to_cell_types(
-            normalized_amplitude,
+        resolved_gid = self._resolve_bias_gids_to_cell_types(
+            resolved_amplitude,
             gid,
         )
 
         # Finally, actually add the validated biases
-        for _cell_type, _amplitude in normalized_amplitude.items():
+        for _cell_type, _amplitude in resolved_amplitude.items():
             self._add_cell_type_bias(
                 amplitude=_amplitude,
                 cell_type=_cell_type,
@@ -2111,7 +2111,7 @@ class Network:
                 bias_name=bias_name,
                 t_0=t0,
                 t_stop=tstop,
-                gid=normalized_gid[_cell_type],
+                gid=resolved_gid[_cell_type],
             )
 
     def _add_cell_type(self, cell_name, pos, cell_template=None):
