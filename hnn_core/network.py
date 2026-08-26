@@ -1839,14 +1839,14 @@ class Network:
             resolved_amplitude = dict()
             if isinstance(gid, int):
                 _gid_type = self.gid_to_type(gid)
-                resolved_amplitude.setdefault(_gid_type, _amplitude_value)
+                resolved_amplitude[_gid_type] = _amplitude_value
             elif isinstance(gid, list):
                 for _gid in gid:
                     _gid_type = self.gid_to_type(_gid)
-                    resolved_amplitude.setdefault(_gid_type, _amplitude_value)
+                    resolved_amplitude[_gid_type] = _amplitude_value
             elif isinstance(gid, dict):
                 for _gid_type in gid.keys():
-                    resolved_amplitude.setdefault(_gid_type, _amplitude_value)
+                    resolved_amplitude[_gid_type] = _amplitude_value
         elif isinstance(amplitude, dict):
             # Wrap this to prevent changes by reference
             resolved_amplitude = dict(amplitude)
