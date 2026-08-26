@@ -336,12 +336,20 @@ class CellResponse(object):
                 if n_cells > 0:
                     spike_rates[cell_type] = np.mean(gid_spike_rate.mean(axis=1))
                 else:
+                    warn(
+                        f"No cells of type '{cell_type}' found; firing rate for this "
+                        "cell type will be 0.0"
+                    )
                     spike_rates[cell_type] = 0.0
 
             elif mean_type == "trial":
                 if n_cells > 0:
                     spike_rates[cell_type] = np.mean(gid_spike_rate, axis=1).tolist()
                 else:
+                    warn(
+                        f"No cells of type '{cell_type}' found; firing rate for this "
+                        "cell type will be 0.0"
+                    )
                     spike_rates[cell_type] = [0.0] * n_trials
 
             elif mean_type == "cell":
@@ -350,6 +358,10 @@ class CellResponse(object):
                         gid_trial_rate.tolist() for gid_trial_rate in gid_spike_rate
                     ]
                 else:
+                    warn(
+                        f"No cells of type '{cell_type}' found; firing rate for this "
+                        "cell type will be 0.0"
+                    )
                     spike_rates[cell_type] = [[0.0] for _ in range(n_trials)]
 
         return spike_rates
