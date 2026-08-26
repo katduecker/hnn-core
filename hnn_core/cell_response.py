@@ -354,18 +354,19 @@ class CellResponse(object):
 
         return spike_rates
 
-    def rate_over_time(self, window_length, cell_types, trial_idx):
+    def rate_over_time(self, window_length, cell_types=None, trial_idx=None):
         """Mean spike rates (Hz) by cell type over time.
 
         Parameters
         ----------
         window_length : int | float
             Length of the sliding window over which firing rates are calculated, in ms.
-        cell_types : list | str
-            Cell types for which firing rates are calculated.
-            If "all", firing rates are calculated for cell type in the network.
-        trial_idx : list | None
-            Trial index for which firing rate is calculated. If None, firing rates are calculated for all trials.
+        cell_types : str | list of str | None, optional
+            Cell types for which firing rates are calculated. If None (the default),
+            firing rates are calculated for all cell types in the network.
+        trial_idx : list | None, optional
+            Trial index for which firing rate is calculated. If None (the default),
+            firing rates are calculated for all trials.
 
         Returns
         -------
@@ -373,7 +374,42 @@ class CellResponse(object):
             Dictionary with keys 'L5_pyramidal', 'L5_basket', etc.
             Includes firing rates over time for each cell type and trial.
         """
+        # Validation
+        if len(self.times) < 2 or np.diff(self.times)[0] == 0:
+            raise ValueError(
+                "'times' must contain at least two entries with non-zero "
+                f"spacing to compute a sampling rate. Got {self.times}"
+            )
 
+        if trial_idx is list:
+            n_trial = len(trial_idx)
+        elif trial_idx is None:
+            n_trial = len(self.spike_gids)
+            trial_idx = range(n_trial)
+        else:
+            ValueError(
+                f"trial_idx has to be of type list or None. Got {type(trial_idx)}"
+            )
+
+        if cell_types is None:
+            cell_types = self._cell_type_names
+        elif isinstance(cell_types, str):
+            if cell_types not in self._cell_type_names:
+                raise ValueError(
+                    f"Invalid cell type provided. Must be present in set "
+                    f"{self._cell_type_names}. Got {cell_types}"
+                )
+            else:
+                cell_types = [cell_types]
+
+        elif isinstance(cell_types, list):
+            if not set(cell_types).issubset(set(self._cell_type_names)):
+                raise ValueError(
+                    f"Invalid cell types provided. Must be present in set "
+                    f"{self._cell_type_names}. Got {cell_types}"
+                )
+
+        # Main body of function
         window_length_samples = int(window_length / np.diff(self.times)[0])
         times = self.times
         dt = np.diff(times)[0]
@@ -385,22 +421,13 @@ class CellResponse(object):
         taper /= taper.sum()
         rates_time = dict()
 
-        if trial_idx is list:
-            n_trial = len(trial_idx)
-
-        elif trial_idx is None:
-            n_trial = len(self.spike_gids)
-            trial_idx = range(n_trial)
-        else:
-            ValueError(
-                f"trial_idx has to be of type list or None. Got {type(trial_idx)}"
-            )
-
-        if cell_types == "all" or cell_types is None:
-            cell_types = self._cell_type_names
-
         for cell_type in cell_types:
             n_cells = len(self._gids_from_spikes(cell_type))
+            if n_cells == 0:
+                warn(
+                    f"No cells of type '{cell_type}' found; firing rate for "
+                    "this cell type will be all zeros."
+                )
             rates_time[cell_type] = np.zeros((n_trial, len(times)))
 
             if cell_type in self.spike_times_by_type and n_cells > 0:
