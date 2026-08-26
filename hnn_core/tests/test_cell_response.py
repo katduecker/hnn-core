@@ -242,6 +242,41 @@ def test_cell_response(tmp_path, input_metadata):
         "L5_pyramidal": [[0.0], [test_rate]],
     }
 
+    # A cell_response with no spikes in any trial should yield 0 Hz rates for
+    # every cell type when gid_ranges is unspecified (tests the empty
+    # spike-record branch of CellResponse._gids_from_spikes)
+    spike_times = [[], []]
+    spike_gids = [[], []]
+    spike_types = [[], []]
+    cell_response = CellResponse(
+        cell_type_names=default_cell_type_names,
+        cell_type_metadata=input_metadata,
+        spike_times=spike_times,
+        spike_gids=spike_gids,
+        spike_types=spike_types,
+    )
+
+    assert cell_response.mean_rates(tstart=tstart, tstop=tstop) == {
+        "L2_basket": 0.0,
+        "L2_pyramidal": 0.0,
+        "L5_basket": 0.0,
+        "L5_pyramidal": 0.0,
+    }
+
+    assert cell_response.mean_rates(tstart=tstart, tstop=tstop, mean_type="trial") == {
+        "L2_basket": [0.0, 0.0],
+        "L2_pyramidal": [0.0, 0.0],
+        "L5_basket": [0.0, 0.0],
+        "L5_pyramidal": [0.0, 0.0],
+    }
+
+    assert cell_response.mean_rates(tstart=tstart, tstop=tstop, mean_type="cell") == {
+        "L2_basket": [[0.0], [0.0]],
+        "L2_pyramidal": [[0.0], [0.0]],
+        "L5_basket": [[0.0], [0.0]],
+        "L5_pyramidal": [[0.0], [0.0]],
+    }
+
     # Write spike file with no 'types' column
     spike_types = [["L2_pyramidal", "L2_basket"], ["L5_pyramidal", "L5_basket"]]
     for fname in sorted(glob(str(tmp_path / "spk_*.txt"))):
