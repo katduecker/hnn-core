@@ -1808,7 +1808,7 @@ class Network:
             elif (tstop - t0) < 0.0:
                 raise ValueError("Duration of tonic input cannot be negative")
 
-    def _normalize_bias_amplitude(self, amplitude, cell_type, gid):
+    def _resolve_bias_amplitudes_to_cell_types(self, amplitude, cell_type, gid):
         """Resolve the ``amplitude`` argument of a tonic bias into a per-cell-type map.
 
         This is performed after validation, so we can assume that all relationships
@@ -1853,7 +1853,7 @@ class Network:
 
         return normalized_amplitude
 
-    def _normalize_bias_gids(self, normalized_amplitude, gid):
+    def _resolve_bias_gids_to_cell_types(self, normalized_amplitude, gid):
         """Resolve the ``gid`` argument of a tonic bias into a per-cell-type map.
 
         This routes every variant of the provided ``gid`` argument for
@@ -2088,7 +2088,7 @@ class Network:
 
         # Normalize the amplitudes, so that we can ensure we always have a dictionary
         # mapping cell type to amplitude, regardless of the input argument style:
-        normalized_amplitude = self._normalize_bias_amplitude(
+        normalized_amplitude = self._resolve_bias_amplitudes_to_cell_types(
             amplitude,
             cell_type,
             gid,
@@ -2097,7 +2097,7 @@ class Network:
         # Normalize the `gid` argument into a per-cell-type mapping so that gids are
         # organized under the corresponding cell type. This converts all input argument
         # styles to the dictionary format used internally:
-        normalized_gid = self._normalize_bias_gids(
+        normalized_gid = self._resolve_bias_gids_to_cell_types(
             normalized_amplitude,
             gid,
         )
