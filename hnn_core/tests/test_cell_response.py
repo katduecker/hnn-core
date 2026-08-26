@@ -551,11 +551,11 @@ def test_rate_over_time_validation():
         cell_response.rate_over_time(window_length=2.0, cell_types=5)
 
     # cell_types as an invalid string
-    with pytest.raises(ValueError, match="Invalid cell_type provided"):
+    with pytest.raises(ValueError, match="Invalid cell type provided"):
         cell_response.rate_over_time(window_length=2.0, cell_types="not_a_cell_type")
 
     # cell_types list containing an invalid entry
-    with pytest.raises(ValueError, match="Invalid cell_types provided"):
+    with pytest.raises(ValueError, match="Invalid cell type provided"):
         cell_response.rate_over_time(
             window_length=2.0, cell_types=["L5_basket", "not_a_cell_type"]
         )

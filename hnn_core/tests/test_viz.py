@@ -568,14 +568,8 @@ class TestCellResponsePlotters:
                 window_length=10, trial_idx="blah", show=False
             )
 
-        # Invalid cell_types type raises a TypeError
-        with pytest.raises(TypeError, match="cell_types must be an instance of"):
-            cell_response.plot_firing_rate_time(
-                window_length=10, cell_types="L5_pyramidal", show=False
-            )
-
         # Unknown cell type raises a ValueError
-        with pytest.raises(ValueError, match="Invalid cell types provided."):
+        with pytest.raises(ValueError, match="Invalid cell type provided"):
             cell_response.plot_firing_rate_time(
                 window_length=10, cell_types=["bad_cell_type"], show=False
             )
@@ -596,7 +590,7 @@ class TestCellResponsePlotters:
                 )
 
         # An unknown cell type in a colors dict raises a ValueError
-        with pytest.raises(ValueError, match="Invalid cell types provided."):
+        with pytest.raises(ValueError, match="Invalid cell type provided"):
             cell_response.plot_firing_rate_time(
                 window_length=10, show=False, colors={"bad_cell_type": "#daf7a6"}
             )

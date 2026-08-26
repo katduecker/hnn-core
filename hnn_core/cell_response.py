@@ -11,7 +11,6 @@ import numpy as np
 
 from .viz import plot_spikes_hist, plot_spikes_raster, plot_firing_rate_time
 from .externals.mne import _validate_type
-import matplotlib.pyplot as plt
 
 
 class CellResponse(object):
@@ -431,7 +430,7 @@ class CellResponse(object):
         elif isinstance(cell_types, str):
             if cell_types not in self._cell_type_names:
                 raise ValueError(
-                    f"Invalid cell_type provided. Must be present in set "
+                    f"Invalid cell type provided. Must be present in set "
                     f"{self._cell_type_names}. Got {cell_types}"
                 )
             else:
@@ -442,7 +441,7 @@ class CellResponse(object):
                 raise ValueError("'cell_types' must not be an empty list.")
             if not set(cell_types).issubset(set(self._cell_type_names)):
                 raise ValueError(
-                    f"Invalid cell_types provided. Must be present in set "
+                    f"Invalid cell type provided. Must be present in set "
                     f"{self._cell_type_names}. Got {cell_types}"
                 )
 
@@ -574,7 +573,14 @@ class CellResponse(object):
         cell_types=None,
         colors=None,
         show_legend=True,
-        **kwargs,
+        sharex=False,
+        sharey=False,
+        xticks=None,
+        yticks=None,
+        xlim=None,
+        ylim=None,
+        xlabel="time (ms)",
+        ylabel="firing rate (Hz)",
     ):
         """Plot time course of firing rates
 
@@ -595,7 +601,24 @@ class CellResponse(object):
             Optional custom colors to plot. Default will use the colors defined in cell metadata.
         show_legend : bool
             If True, show the legend with colors for cell types
-        **kwargs : option to include xlabel, ylabel, xticks, yticks, sharey, sharex, xlim, ylim for publication-ready figures.
+        sharex : bool
+            If True, subplot x-axes will be shared. Only used when creating a new
+            figure (i.e., when `ax` is None).
+        sharey : bool
+            If True, subplot y-axes will be shared. Only used when creating a new
+            figure (i.e., when `ax` is None).
+        xticks : array-like | None
+            Custom x-axis tick locations. If None, matplotlib's default is used.
+        yticks : array-like | None
+            Custom y-axis tick locations. If None, matplotlib's default is used.
+        xlim : tuple of (float, float) | None
+            Custom x-axis limits. If None, defaults to the full time range.
+        ylim : tuple of (float, float) | None
+            Custom y-axis limits. If None, matplotlib's default is used.
+        xlabel : str
+            Label for the x-axis.
+        ylabel : str
+            Label for the y-axis.
 
         Returns
         -------
@@ -611,7 +634,14 @@ class CellResponse(object):
             cell_types=cell_types,
             colors=colors,
             show_legend=show_legend,
-            **kwargs,
+            sharex=sharex,
+            sharey=sharey,
+            xticks=xticks,
+            yticks=yticks,
+            xlim=xlim,
+            ylim=ylim,
+            xlabel=xlabel,
+            ylabel=ylabel,
         )
 
     def plot_spikes_hist(
