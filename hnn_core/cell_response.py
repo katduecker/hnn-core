@@ -590,8 +590,10 @@ def read_spikes(fname, gid_ranges=None):
             spike_types += [list()]
 
     network_cell_names = ["L2_basket", "L2_pyramidal", "L5_basket", "L5_pyramidal"]
+    # Need to cast "np.str_" to str type, since types are loaded above as np.str_, not
+    # regular strings
     cell_type_names = list(
-        cell_name for cell_name in network_cell_names if cell_name in spike_types
+        cell_name for cell_name in network_cell_names if cell_name in str(spike_types)
     )
     cell_response = CellResponse(
         cell_type_names=cell_type_names,
