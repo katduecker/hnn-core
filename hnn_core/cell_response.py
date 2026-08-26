@@ -366,28 +366,13 @@ class CellResponse(object):
 
         return spike_rates
 
-    def rate_over_time(self, window_length, cell_types=None, trial_idx=None):
-        """Mean spike rates (Hz) by cell type over time.
+    def _preprocess_rate_over_time_args(self, window_length, cell_types, trial_idx):
+        """Validation and preprocessing of arguments for rate_over_time methods.
 
-        Parameters
-        ----------
-        window_length : int | float
-            Length of the sliding window over which firing rates are calculated, in
-            ms. Must be greater than the 'dt' of the simulation.
-        cell_types : str | list of str | None, optional
-            Cell types for which firing rates are calculated. If None (the default),
-            firing rates are calculated for all cell types in the network.
-        trial_idx : int | list | None, optional
-            Trial index (or list of indices) for which firing rate is calculated. If
-            None (the default), firing rates are calculated for all trials.
-
-        Returns
-        -------
-        rates : dict
-            Dictionary with keys 'L5_pyramidal', 'L5_basket', etc.
-            Includes firing rates over time for each cell type and trial.
+        Specifically intended for arguments to `CellResponse.rate_over_time` and
+        `CellResponse.plot_firing_rate_time`
         """
-        # Validation
+
         # This checks that the CellResponse.times attribute is valid BEFORE checking any
         # arguments, since `.times` is NOT guaranteed to be nonzero or nonempty.
         times = self.times
@@ -460,6 +445,34 @@ class CellResponse(object):
                     f"Invalid cell_types provided. Must be present in set "
                     f"{self._cell_type_names}. Got {cell_types}"
                 )
+
+        return times, dt, trial_list, cell_types
+
+    def rate_over_time(self, window_length, cell_types=None, trial_idx=None):
+        """Mean spike rates (Hz) by cell type over time.
+
+        Parameters
+        ----------
+        window_length : int | float
+            Length of the sliding window over which firing rates are calculated, in
+            ms. Must be greater than the 'dt' of the simulation.
+        cell_types : str | list of str | None, optional
+            Cell types for which firing rates are calculated. If None (the default),
+            firing rates are calculated for all cell types in the network.
+        trial_idx : int | list of int | None, optional
+            Trial index (or list of indices) for which firing rate is calculated. If
+            None (the default), firing rates are calculated for all trials.
+
+        Returns
+        -------
+        rates : dict
+            Dictionary with keys 'L5_pyramidal', 'L5_basket', etc.
+            Includes firing rates over time for each cell type and trial.
+        """
+        # Validation and preprocessing of arguments
+        times, dt, trial_list, cell_types = self._preprocess_rate_over_time_args(
+            window_length, cell_types, trial_idx
+        )
 
         # Main body of function
         window_length_samples = int(window_length / dt)
@@ -570,8 +583,8 @@ class CellResponse(object):
         window_length : int | float
             Length of the sliding window over which mean rates are calculated, in ms.
         trial_idx : int | list of int | None
-            Index of trials to be plotted. If None, mean rate over trials is plotted,
-            and standard deviation is indicated by shading.
+            Trial index (or list of indices) to be plotted. If None, mean rate over
+            all trials is plotted, and standard deviation is indicated by shading.
         ax : instance of matplotlib axis | None
             An axis object from matplotlib. If None, a new figure is created.
         show : bool
@@ -589,78 +602,14 @@ class CellResponse(object):
         fig : instance of matplotlib Figure
             The matplotlib figure object.
         """
-
-        # validate trial argument
-        if isinstance(trial_idx, int):
-            trial_idx = [trial_idx]
-        _validate_type(trial_idx, (list, None), "trial_idx", "int, list of int")
-
-        # validate cell types
-        if cell_types:
-            _validate_type(cell_types, list, "cell_types", "list of str")
-            # allowed are spikes that fired (including drives) and generally cells in network
-            allowed_types = np.unique(self.cell_types + self._cell_type_names)
-            if not set(cell_types).issubset(allowed_types):
-                raise ValueError(
-                    "Invalid cell types provided. "
-                    f"Must be of set {allowed_types}. "
-                    f"Got {cell_types}"
-                )
-        else:
-            cell_types = self._cell_type_names
-
-        cell_type_metadata = getattr(self, "_cell_type_metadata", None)
-        # validate colors argument
-        _validate_type(colors, (list, dict, None), "color", "list of str, or dict")
-
-        # Set colors
-        if (
-            cell_type_metadata is not None
-            and "color" in cell_type_metadata[cell_types[0]]
-        ):
-            cell_colors = {
-                cell: meta["color"] for cell, meta in cell_type_metadata.items()
-            }
-        else:
-            default_colors = plt.rcParams["axes.prop_cycle"].by_key()["color"][
-                : len(cell_types)
-            ]
-            cell_colors = {
-                cell: color for cell, color in zip(cell_types, default_colors)
-            }
-
-        # calculate firing rates
-        fr_cell_types = self.rate_over_time(
-            window_length=window_length,
-            cell_types=cell_types,
-            trial_idx=trial_idx,
-        )
-
-        if colors:
-            if isinstance(colors, list):
-                if len(colors) != len(cell_types):
-                    raise ValueError(
-                        f"Number of colors must be equal to number of "
-                        f"cell types. {len(colors)} colors provided "
-                        f"for {len(cell_types)} cell types."
-                    )
-                cell_colors = {cell: color for cell, color in zip(cell_types, colors)}
-            if isinstance(colors, dict):
-                # Check valid cell types
-                if not set(colors.keys()).issubset(set(fr_cell_types.keys())):
-                    raise ValueError(
-                        "Invalid cell types provided. "
-                        f"Must be of set {fr_cell_types.keys()}. "
-                        f"Got {colors.keys()}"
-                    )
-                cell_colors.update(colors)
-
         return plot_firing_rate_time(
-            fr_cell_types=fr_cell_types,
-            times=self.times,
+            self,
+            window_length=window_length,
+            trial_idx=trial_idx,
             ax=ax,
             show=show,
-            colors=cell_colors,
+            cell_types=cell_types,
+            colors=colors,
             show_legend=show_legend,
             **kwargs,
         )
