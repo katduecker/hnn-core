@@ -386,6 +386,16 @@ def test_rate_over_time_trial_idx():
     assert not np.allclose(rates_all["L5_basket"][0], rates_all["L5_basket"][1])
     assert not np.allclose(rates_all["L5_basket"][1], rates_all["L5_basket"][2])
 
+    # trial_idx as an integer must return that trial's own data
+    for trial in (0, 1, 2):
+        rate_int = cell_response.rate_over_time(
+            window_length=window_length,
+            cell_types=["L5_basket"],
+            trial_idx=trial,
+        )
+        assert rate_int["L5_basket"].shape == (1, len(sim_times))
+        assert np.allclose(rate_int["L5_basket"][0], rates_all["L5_basket"][trial])
+
     # trial_idx as a single-element list must return that trial's own data
     for trial in (0, 1, 2):
         rate_single = cell_response.rate_over_time(
@@ -405,9 +415,84 @@ def test_rate_over_time_trial_idx():
     assert np.allclose(rate_multi["L5_basket"][0], rates_all["L5_basket"][2])
     assert np.allclose(rate_multi["L5_basket"][1], rates_all["L5_basket"][0])
 
-    # An invalid trial_idx type must raise a ValueError instead of silently
-    # continuing with an undefined n_trial
-    with pytest.raises(ValueError, match="trial_idx has to be of type list or None"):
+
+def test_rate_over_time_validation():
+    """Test input validation of rate_over_time, independent of its outputs."""
+    spike_times = [[2.0], [8.0]]
+    spike_gids = [[7], [7]]
+    spike_types = [["L5_basket"], ["L5_basket"]]
+    tstart, tstop, fs = 0.0, 20.0, 10.0
+    sim_times = np.arange(tstart, tstop, 1 / fs)
+    total_duration = sim_times[-1] - sim_times[0]
+    dt = np.diff(sim_times)[0]
+
+    cell_response = CellResponse(
+        cell_type_names=["L5_basket"],
+        spike_times=spike_times,
+        spike_gids=spike_gids,
+        spike_types=spike_types,
+        times=sim_times,
+    )
+
+    # times must have at least two entries with non-zero spacing
+    bad_times_response = CellResponse(
+        cell_type_names=["L5_basket"],
+        spike_times=spike_times,
+        spike_gids=spike_gids,
+        spike_types=spike_types,
+        times=np.array([1.0]),
+    )
+    with pytest.raises(ValueError, match="'times' must contain at least two"):
+        bad_times_response.rate_over_time(window_length=2.0)
+
+    # window_length must be int or float
+    with pytest.raises(TypeError, match="window_length"):
+        cell_response.rate_over_time(window_length="2.0")
+
+    # window_length must be greater than dt
+    with pytest.raises(ValueError, match="greater than the 'dt'"):
+        cell_response.rate_over_time(window_length=dt)
+
+    # window_length must not exceed the total recorded duration
+    with pytest.raises(ValueError, match="not be greater than the total duration"):
+        cell_response.rate_over_time(window_length=total_duration + 1.0)
+
+    # trial_idx must be int, list, or None
+    with pytest.raises(TypeError, match="trial_idx"):
+        cell_response.rate_over_time(window_length=2.0, trial_idx="0")
+
+    # trial_idx as an out-of-range int
+    with pytest.raises(ValueError, match="'trial_idx' must be a non-negative"):
+        cell_response.rate_over_time(window_length=2.0, trial_idx=5)
+    with pytest.raises(ValueError, match="'trial_idx' must be a non-negative"):
+        cell_response.rate_over_time(window_length=2.0, trial_idx=-1)
+
+    # trial_idx list with non-integer elements
+    with pytest.raises(ValueError, match="must be integers"):
+        cell_response.rate_over_time(window_length=2.0, trial_idx=[0, "1"])
+
+    # trial_idx list with out-of-range elements
+    with pytest.raises(ValueError, match="less than the number of trials"):
+        cell_response.rate_over_time(window_length=2.0, trial_idx=[0, 5])
+
+    # trial_idx as an empty list
+    with pytest.raises(ValueError, match="'trial_idx' must not be an empty list"):
+        cell_response.rate_over_time(window_length=2.0, trial_idx=[])
+
+    # cell_types must be str, list, or None
+    with pytest.raises(TypeError, match="cell_types"):
+        cell_response.rate_over_time(window_length=2.0, cell_types=5)
+
+    # cell_types as an invalid string
+    with pytest.raises(ValueError, match="Invalid cell_type provided"):
+        cell_response.rate_over_time(window_length=2.0, cell_types="not_a_cell_type")
+
+    # cell_types list containing an invalid entry
+    with pytest.raises(ValueError, match="Invalid cell_types provided"):
         cell_response.rate_over_time(
-            window_length=window_length, cell_types=["L5_basket"], trial_idx="bad"
+            window_length=2.0, cell_types=["L5_basket", "not_a_cell_type"]
         )
+
+    # cell_types as an empty list
+    with pytest.raises(ValueError, match="'cell_types' must not be an empty list"):
+        cell_response.rate_over_time(window_length=2.0, cell_types=[])

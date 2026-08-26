@@ -360,13 +360,14 @@ class CellResponse(object):
         Parameters
         ----------
         window_length : int | float
-            Length of the sliding window over which firing rates are calculated, in ms.
+            Length of the sliding window over which firing rates are calculated, in
+            ms. Must be greater than the 'dt' of the simulation.
         cell_types : str | list of str | None, optional
             Cell types for which firing rates are calculated. If None (the default),
             firing rates are calculated for all cell types in the network.
-        trial_idx : list | None, optional
-            Trial index for which firing rate is calculated. If None (the default),
-            firing rates are calculated for all trials.
+        trial_idx : int | list | None, optional
+            Trial index (or list of indices) for which firing rate is calculated. If
+            None (the default), firing rates are calculated for all trials.
 
         Returns
         -------
@@ -377,49 +378,79 @@ class CellResponse(object):
         # Validation
         # This checks that the CellResponse.times attribute is valid BEFORE checking any
         # arguments, since `.times` is NOT guaranteed to be nonzero or nonempty.
-        if len(self.times) < 2 or np.diff(self.times)[0] == 0:
+        times = self.times
+        if len(times) < 2 or np.isclose(np.diff(times)[0], 0):
             raise ValueError(
                 "'times' must contain at least two entries with non-zero "
                 f"spacing to compute a sampling rate. Got {self.times}"
             )
+        dt = np.diff(times)[0]
 
-        if window_length <= 0:
+        # Validate window_length
+        _validate_type(window_length, (int, float), "window_length", "int, float")
+        total_duration = times[-1] - times[0]
+        if window_length <= dt:
             raise ValueError(
-                f"'window_length' must be a positive number. Got {window_length}"
+                f"'window_length' must be greater than the 'dt' simulation timestep. "
+                f"Got {window_length}"
+            )
+        elif window_length > total_duration:
+            raise ValueError(
+                f"'window_length' must not be greater than the total duration of "
+                f"the simulation ({total_duration}). Got {window_length}"
             )
 
-        if trial_idx is list:
-            n_trial = len(trial_idx)
+        # Validate trial_idx
+        _validate_type(trial_idx, (int, list, None), "trial_idx", "int, list of int")
+        n_max_trials = len(self.spike_gids)
+        if isinstance(trial_idx, int):
+            if trial_idx < 0 or trial_idx >= n_max_trials:
+                raise ValueError(
+                    f"'trial_idx' must be a non-negative integer less "
+                    f"than the number of trials ({n_max_trials}). Got {trial_idx}"
+                )
+            trial_list = [trial_idx]
+        elif isinstance(trial_idx, list):
+            if len(trial_idx) == 0:
+                raise ValueError("'trial_idx' must not be an empty list.")
+            for trial in trial_idx:
+                if not isinstance(trial, int):
+                    raise ValueError(
+                        f"Trial indices in 'trial_idx' must be integers. Got {type(trial)}"
+                    )
+                elif trial < 0 or trial >= n_max_trials:
+                    raise ValueError(
+                        f"Each element of 'trial_idx' must be a non-negative integer "
+                        f"less than the number of trials ({n_max_trials}). Got {trial}"
+                    )
+            trial_list = trial_idx
         elif trial_idx is None:
-            n_trial = len(self.spike_gids)
-            trial_idx = range(n_trial)
-        else:
-            ValueError(
-                f"trial_idx has to be of type list or None. Got {type(trial_idx)}"
-            )
+            trial_list = list(range(n_max_trials))
 
+        # Validate cell_types
+        _validate_type(cell_types, (str, list, None), "cell_types", "str, list of str")
         if cell_types is None:
             cell_types = self._cell_type_names
         elif isinstance(cell_types, str):
             if cell_types not in self._cell_type_names:
                 raise ValueError(
-                    f"Invalid cell type provided. Must be present in set "
+                    f"Invalid cell_type provided. Must be present in set "
                     f"{self._cell_type_names}. Got {cell_types}"
                 )
             else:
                 cell_types = [cell_types]
 
         elif isinstance(cell_types, list):
+            if len(cell_types) == 0:
+                raise ValueError("'cell_types' must not be an empty list.")
             if not set(cell_types).issubset(set(self._cell_type_names)):
                 raise ValueError(
-                    f"Invalid cell types provided. Must be present in set "
+                    f"Invalid cell_types provided. Must be present in set "
                     f"{self._cell_type_names}. Got {cell_types}"
                 )
 
         # Main body of function
-        window_length_samples = int(window_length / np.diff(self.times)[0])
-        times = self.times
-        dt = np.diff(times)[0]
+        window_length_samples = int(window_length / dt)
         edges = np.concatenate(
             [times - dt / 2, [times[-1] + dt / 2]]
         )  # len(times)+1 edges
@@ -435,14 +466,14 @@ class CellResponse(object):
                     f"No cells of type '{cell_type}' found; firing rate for "
                     "this cell type will be all zeros."
                 )
-            rates_time[cell_type] = np.zeros((n_trial, len(times)))
+            rates_time[cell_type] = np.zeros((len(trial_list), len(times)))
 
             if cell_type in self.spike_times_by_type and n_cells > 0:
-                for trial in range(n_trial):
+                for row, trial in enumerate(trial_list):
                     spike_type_time = np.histogram(
                         self.spike_times_by_type[cell_type][trial], bins=edges
                     )[0]
-                    rates_time[cell_type][trial] = (
+                    rates_time[cell_type][row] = (
                         np.convolve(spike_type_time, taper, "same")
                         / (dt / 1e3)  # conversion of dt from ms to s (to get 1/s = Hz)
                         / n_cells
