@@ -349,14 +349,12 @@ def test_cell_response(tmp_path, input_metadata):
 
 
 def test_rate_over_time_trial_idx():
-    """Test that trial_idx selects the correct trial(s) in rate_over_time.
+    """Test all non-validation code paths of rate_over_time.
 
-    Regression test: rate_over_time used to check ``trial_idx is list``
-    (an identity check against the type, never true for an actual list)
-    and, when it did fall into that branch, indexed the output rows with
-    ``range(n_trial)`` instead of the requested trial indices -- so
-    ``trial_idx=[1]`` would silently return trial 0's data, and any real
-    list crashed with an UnboundLocalError on ``n_trial``.
+    Covers trial_idx selection (int, list, out-of-order list, None), the
+    cell_types forms (None, str, list, multiple types in one call), the
+    zero-cells-recorded warning/all-zero branch, and normalization by
+    n_cells when more than one gid of a type is present.
     """
     # 3 trials, single gid, with a distinct spike time per trial so each
     # trial's rate-over-time trace is distinguishable from the others
@@ -414,6 +412,75 @@ def test_rate_over_time_trial_idx():
     assert rate_multi["L5_basket"].shape == (2, len(sim_times))
     assert np.allclose(rate_multi["L5_basket"][0], rates_all["L5_basket"][2])
     assert np.allclose(rate_multi["L5_basket"][1], rates_all["L5_basket"][0])
+
+    # --- cell_types forms: None, str, and multiple types in one call ---
+    # Use a second cell type name that is never present in the spike record,
+    # so it exercises the n_cells == 0 branch (warning + all-zero output)
+    # alongside the recorded "L5_basket" type.
+    cell_response_multi_type = CellResponse(
+        cell_type_names=["L5_basket", "L5_pyramidal"],
+        spike_times=spike_times,
+        spike_gids=spike_gids,
+        spike_types=spike_types,
+        times=sim_times,
+    )
+
+    # cell_types=None must default to every name in cell_type_names
+    with pytest.warns(UserWarning, match="No cells of type 'L5_pyramidal'"):
+        rates_default = cell_response_multi_type.rate_over_time(
+            window_length=window_length
+        )
+    assert set(rates_default.keys()) == {"L5_basket", "L5_pyramidal"}
+    assert np.allclose(rates_default["L5_basket"], rates_all["L5_basket"])
+    assert np.array_equal(rates_default["L5_pyramidal"], np.zeros((3, len(sim_times))))
+
+    # cell_types as a bare str must behave like a single-element list
+    rate_str = cell_response_multi_type.rate_over_time(
+        window_length=window_length, cell_types="L5_basket"
+    )
+    assert set(rate_str.keys()) == {"L5_basket"}
+    assert np.allclose(rate_str["L5_basket"], rates_all["L5_basket"])
+
+    # cell_types as a list with more than one entry, requested together,
+    # must return the same per-type results as requesting them separately
+    with pytest.warns(UserWarning, match="No cells of type 'L5_pyramidal'"):
+        rate_both = cell_response_multi_type.rate_over_time(
+            window_length=window_length, cell_types=["L5_basket", "L5_pyramidal"]
+        )
+    assert set(rate_both.keys()) == {"L5_basket", "L5_pyramidal"}
+    assert np.allclose(rate_both["L5_basket"], rates_all["L5_basket"])
+    assert np.array_equal(rate_both["L5_pyramidal"], np.zeros((3, len(sim_times))))
+
+    # cell_types requesting only the never-recorded type in isolation must
+    # still warn and return all zeros (n_cells == 0 branch on its own)
+    with pytest.warns(UserWarning, match="No cells of type 'L5_pyramidal'"):
+        rate_zero_only = cell_response_multi_type.rate_over_time(
+            window_length=window_length, cell_types=["L5_pyramidal"]
+        )
+    assert np.array_equal(rate_zero_only["L5_pyramidal"], np.zeros((3, len(sim_times))))
+
+    # --- normalization divides by the total number of gids of a type, not
+    # just the number that fired in a given trial ---
+    # gid 9 fires only in trial 2 (disjoint from gid 7's trial 0 spike), so
+    # it is counted as a second "L5_basket" cell without altering trial 0's
+    # spike histogram -- trial 0's rate should therefore be exactly halved
+    # relative to the single-gid fixture.
+    two_gid_spike_times = [[2.0], [8.0], [14.0, 14.0]]
+    two_gid_spike_gids = [[7], [7], [7, 9]]
+    two_gid_spike_types = [["L5_basket"], ["L5_basket"], ["L5_basket", "L5_basket"]]
+
+    cell_response_two_gids = CellResponse(
+        cell_type_names=["L5_basket"],
+        spike_times=two_gid_spike_times,
+        spike_gids=two_gid_spike_gids,
+        spike_types=two_gid_spike_types,
+        times=sim_times,
+    )
+
+    rate_two_gids = cell_response_two_gids.rate_over_time(
+        window_length=window_length, cell_types=["L5_basket"], trial_idx=0
+    )
+    assert np.allclose(rate_two_gids["L5_basket"][0], rates_all["L5_basket"][0] / 2)
 
 
 def test_rate_over_time_validation():
