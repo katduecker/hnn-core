@@ -1832,6 +1832,7 @@ class Network:
             A dictionary where keys are cell types and values are the corresponding
             amplitude values.
         """
+        # This argument will be deprecated in a future release
         if cell_type is not None:
             resolved_amplitude = {cell_type: float(amplitude)}
         elif isinstance(amplitude, (int, float)):
