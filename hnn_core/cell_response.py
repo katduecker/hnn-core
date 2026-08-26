@@ -375,10 +375,17 @@ class CellResponse(object):
             Includes firing rates over time for each cell type and trial.
         """
         # Validation
+        # This checks that the CellResponse.times attribute is valid BEFORE checking any
+        # arguments, since `.times` is NOT guaranteed to be nonzero or nonempty.
         if len(self.times) < 2 or np.diff(self.times)[0] == 0:
             raise ValueError(
                 "'times' must contain at least two entries with non-zero "
                 f"spacing to compute a sampling rate. Got {self.times}"
+            )
+
+        if window_length <= 0:
+            raise ValueError(
+                f"'window_length' must be a positive number. Got {window_length}"
             )
 
         if trial_idx is list:
