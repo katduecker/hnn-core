@@ -7,6 +7,7 @@
 import os
 import json
 import numpy as np
+from copy import deepcopy
 
 from collections import OrderedDict
 from pathlib import Path
@@ -113,6 +114,8 @@ def _read_cell_types(cell_types_data):
         - "cell_object": Cell instance
         - "cell_metadata": dict of metadata (empty dict for legacy format)
     """
+    from .network_models import default_cell_metadata
+
     cell_types = dict()
     for cell_name in cell_types_data:
         # Determine format and extract cell_data and metadata accordingly
@@ -129,37 +132,13 @@ def _read_cell_types(cell_types_data):
             #   Treat the entire cell_data as the cell information
             cell_data = cell_types_data[cell_name]
             if cell_name == "L2_basket":
-                cell_metadata = {
-                    "morpho_type": "basket",
-                    "electro_type": "inhibitory",
-                    "layer": "2",
-                    "measure_dipole": False,
-                    "reference": "https://doi.org/10.7554/eLife.51214",
-                }
+                cell_metadata = deepcopy(default_cell_metadata["L2_basket"])
             elif cell_name == "L2_pyramidal":
-                cell_metadata = {
-                    "morpho_type": "pyramidal",
-                    "electro_type": "excitatory",
-                    "layer": "2",
-                    "measure_dipole": True,
-                    "reference": "https://doi.org/10.7554/eLife.51214",
-                }
+                cell_metadata = deepcopy(default_cell_metadata["L2_pyramidal"])
             elif cell_name == "L5_basket":
-                cell_metadata = {
-                    "morpho_type": "basket",
-                    "electro_type": "inhibitory",
-                    "layer": "5",
-                    "measure_dipole": False,
-                    "reference": "https://doi.org/10.7554/eLife.51214",
-                }
+                cell_metadata = deepcopy(default_cell_metadata["L5_basket"])
             elif cell_name == "L5_pyramidal":
-                cell_metadata = {
-                    "morpho_type": "pyramidal",
-                    "electro_type": "excitatory",
-                    "layer": "5",
-                    "measure_dipole": True,
-                    "reference": "https://doi.org/10.7554/eLife.51214",
-                }
+                cell_metadata = deepcopy(default_cell_metadata["L5_pyramidal"])
 
         # Now cell_data contains the cell properties regardless of format
         sections = dict()
