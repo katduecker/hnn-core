@@ -333,16 +333,18 @@ class CellResponse(object):
                 ) * 1000
 
             if mean_type == "all":
-                spike_rates[cell_type] = (
-                    np.mean(gid_spike_rate.mean(axis=1)) if n_cells > 0 else 0.0
-                )
-            if mean_type == "trial":
+                if n_cells > 0:
+                    spike_rates[cell_type] = np.mean(gid_spike_rate.mean(axis=1))
+                else:
+                    spike_rates[cell_type] = 0.0
+
+            elif mean_type == "trial":
                 if n_cells > 0:
                     spike_rates[cell_type] = np.mean(gid_spike_rate, axis=1).tolist()
                 else:
                     spike_rates[cell_type] = [0.0] * n_trials
 
-            if mean_type == "cell":
+            elif mean_type == "cell":
                 if n_cells > 0:
                     spike_rates[cell_type] = [
                         gid_trial_rate.tolist() for gid_trial_rate in gid_spike_rate
