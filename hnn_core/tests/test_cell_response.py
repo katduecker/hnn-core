@@ -269,3 +269,68 @@ def test_cell_response(tmp_path, input_metadata):
         }
         cell_response = read_spikes(tmp_path / "spk_*.txt", gid_ranges=gid_ranges)
     plt.close("all")
+
+
+def test_rate_over_time_trial_idx():
+    """Test that trial_idx selects the correct trial(s) in rate_over_time.
+
+    Regression test: rate_over_time used to check ``trial_idx is list``
+    (an identity check against the type, never true for an actual list)
+    and, when it did fall into that branch, indexed the output rows with
+    ``range(n_trial)`` instead of the requested trial indices -- so
+    ``trial_idx=[1]`` would silently return trial 0's data, and any real
+    list crashed with an UnboundLocalError on ``n_trial``.
+    """
+    # 3 trials, single gid, with a distinct spike time per trial so each
+    # trial's rate-over-time trace is distinguishable from the others
+    spike_times = [[2.0], [8.0], [14.0]]
+    spike_gids = [[7], [7], [7]]
+    spike_types = [["L5_basket"], ["L5_basket"], ["L5_basket"]]
+    tstart, tstop, fs = 0.0, 20.0, 10.0
+    sim_times = np.arange(tstart, tstop, 1 / fs)
+
+    cell_response = CellResponse(
+        cell_type_names=["L5_basket"],
+        spike_times=spike_times,
+        spike_gids=spike_gids,
+        spike_types=spike_types,
+        times=sim_times,
+    )
+
+    window_length = 2.0
+
+    # trial_idx=None: all trials computed at once
+    rates_all = cell_response.rate_over_time(
+        window_length=window_length, cell_types=["L5_basket"], trial_idx=None
+    )
+    assert rates_all["L5_basket"].shape == (3, len(sim_times))
+    # sanity check that the 3 trials are not identical (i.e. the spikes at
+    # different times actually produce different traces)
+    assert not np.allclose(rates_all["L5_basket"][0], rates_all["L5_basket"][1])
+    assert not np.allclose(rates_all["L5_basket"][1], rates_all["L5_basket"][2])
+
+    # trial_idx as a single-element list must return that trial's own data
+    for trial in (0, 1, 2):
+        rate_single = cell_response.rate_over_time(
+            window_length=window_length,
+            cell_types=["L5_basket"],
+            trial_idx=[trial],
+        )
+        assert rate_single["L5_basket"].shape == (1, len(sim_times))
+        assert np.allclose(rate_single["L5_basket"][0], rates_all["L5_basket"][trial])
+
+    # trial_idx as a multi-element list, out of order, must preserve the
+    # requested order in the output rows
+    rate_multi = cell_response.rate_over_time(
+        window_length=window_length, cell_types=["L5_basket"], trial_idx=[2, 0]
+    )
+    assert rate_multi["L5_basket"].shape == (2, len(sim_times))
+    assert np.allclose(rate_multi["L5_basket"][0], rates_all["L5_basket"][2])
+    assert np.allclose(rate_multi["L5_basket"][1], rates_all["L5_basket"][0])
+
+    # An invalid trial_idx type must raise a ValueError instead of silently
+    # continuing with an undefined n_trial
+    with pytest.raises(ValueError, match="trial_idx has to be of type list or None"):
+        cell_response.rate_over_time(
+            window_length=window_length, cell_types=["L5_basket"], trial_idx="bad"
+        )

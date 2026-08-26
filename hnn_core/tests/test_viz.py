@@ -557,6 +557,51 @@ class TestCellResponsePlotters:
             if label != "L2_pyramidal":
                 assert colors[i] == default_colors[i]
 
+    def test_firing_rate_time_trial_idx(self, base_simulation_spikes):
+        """Plotting firing rates over time with single vs multiple trials"""
+        net, _ = base_simulation_spikes
+        cell_response = net.cell_response
+        cell_types = cell_response._cell_type_names
+        n_trials = len(cell_response.spike_gids)
+        assert n_trials == 2
+
+        # Default (all trials) and int trial_idx should each plot fine, one
+        # line per cell-type subplot
+        for trial_idx in (None, 0, 1, [0, 1]):
+            axes = cell_response.plot_firing_rate_time(
+                window_length=10, trial_idx=trial_idx, show=False
+            )
+            for ax in np.atleast_1d(axes):
+                assert len(ax.get_lines()) == 1
+                assert len(ax.get_lines()[0].get_ydata()) == len(cell_response.times)
+
+        # Plotting a single trial by index must show that trial's own data,
+        # not always trial 0's (regression check for the trial_idx bug)
+        rate_trial1 = cell_response.rate_over_time(
+            window_length=10, cell_types=cell_types, trial_idx=[1]
+        )
+        axes_trial1 = cell_response.plot_firing_rate_time(
+            window_length=10, trial_idx=1, show=False
+        )
+        for ax, cell_type in zip(np.atleast_1d(axes_trial1), cell_types):
+            np.testing.assert_allclose(
+                ax.get_lines()[0].get_ydata(), rate_trial1[cell_type][0]
+            )
+
+        # Multi-trial plot shows the mean across the requested trials
+        rate_both = cell_response.rate_over_time(
+            window_length=10, cell_types=cell_types, trial_idx=[0, 1]
+        )
+        axes_both = cell_response.plot_firing_rate_time(
+            window_length=10, trial_idx=[0, 1], show=False
+        )
+        for ax, cell_type in zip(np.atleast_1d(axes_both), cell_types):
+            np.testing.assert_allclose(
+                ax.get_lines()[0].get_ydata(), np.mean(rate_both[cell_type], axis=0)
+            )
+
+        plt.close("all")
+
     def test_firing_rate_time_errors(self, base_simulation_spikes):
         """ValueErrors/TypeErrors are raised for invalid arguments"""
         net, _ = base_simulation_spikes

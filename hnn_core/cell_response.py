@@ -383,14 +383,13 @@ class CellResponse(object):
         taper /= taper.sum()
         rates_time = dict()
 
-        if trial_idx is list:
+        if isinstance(trial_idx, list):
             n_trial = len(trial_idx)
-
         elif trial_idx is None:
             n_trial = len(self.spike_gids)
-            trial_idx = range(n_trial)
+            trial_idx = list(range(n_trial))
         else:
-            ValueError(
+            raise ValueError(
                 f"trial_idx has to be of type list or None. Got {type(trial_idx)}"
             )
 
@@ -402,11 +401,11 @@ class CellResponse(object):
             rates_time[cell_type] = np.zeros((n_trial, len(times)))
 
             if cell_type in self.spike_times_by_type and n_cells > 0:
-                for trial in range(n_trial):
+                for row, trial in enumerate(trial_idx):
                     spike_type_time = np.histogram(
                         self.spike_times_by_type[cell_type][trial], bins=edges
                     )[0]
-                    rates_time[cell_type][trial] = (
+                    rates_time[cell_type][row] = (
                         np.convolve(spike_type_time, taper, "same")
                         / (dt / 1e3)  # conversion of dt from ms to s (to get 1/s = Hz)
                         / n_cells
