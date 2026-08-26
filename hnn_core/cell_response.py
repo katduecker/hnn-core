@@ -246,7 +246,7 @@ class CellResponse(object):
         self._spike_types = spike_types
 
     def _gids_from_spikes(self, cell_type):
-        """Sorted unique gids of ``cell_type`` that fired at least once.
+        """Sort unique gids of ``cell_type`` that fired at least once.
 
         Derived from the recorded spikes, pooled across all trials so a cell
         that is silent in one trial still counts if it fires in another. Note
@@ -330,7 +330,7 @@ class CellResponse(object):
 
                 gid_spike_rate[trial_idx, np.isin(cell_type_gids, gids)] = (
                     gid_counts / (tstop - tstart)
-                ) * 1000
+                ) * 1000  # conversion to go from simulation time in ms to rates of Hz
 
             if mean_type == "all":
                 if n_cells > 0:
