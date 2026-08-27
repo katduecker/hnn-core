@@ -1760,7 +1760,7 @@ class Network:
                             f"Amplitude cell types: {amplitude_cell_types}, "
                             f"GID cell types: {gid_detected_cell_types}."
                             "If you want to add a tonic bias to all cells of one type, "
-                            "define as dictionary gid={cell_type: 'all'}."
+                            "define 'gid' as a dictionary like {'<cell_type>': 'all'}."
                         )
 
             elif isinstance(gid, dict):
