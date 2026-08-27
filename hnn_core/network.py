@@ -1659,7 +1659,11 @@ class Network:
                         f"Invalid gid '{_gid}', not found in Network.gid_ranges: "
                         f"'{self.gid_ranges}'."
                     )
-                elif isinstance(amplitude, dict) and _gid_type not in amplitude.keys():
+                elif (
+                    isinstance(amplitude, dict)
+                    and _gid_type not in amplitude.keys()
+                    and input_cell_type is None
+                ):
                     raise ValueError(
                         f"GID '{_gid}' is of cell type '{_gid_type}', but this cell "
                         "type is not present in the 'amplitude' dictionary."
@@ -1752,13 +1756,11 @@ class Network:
                     if amplitude_cell_types > gid_detected_cell_types:
                         raise ValueError(
                             "The 'amplitude' dictionary contains cell types that are "
-                            "not present in the provided 'gid' argument. Please change "
-                            "your 'gid' argument to include either GIDs from the "
-                            "missing cell type, or if your 'gid' is a dictionary, "
-                            "provide 'all' for that celltype to apply the bias to all "
-                            "cells of that type. "
+                            "not present in the provided 'gid' argument. "
                             f"Amplitude cell types: {amplitude_cell_types}, "
                             f"GID cell types: {gid_detected_cell_types}."
+                            "If you want to add a tonic bias to all cells of one type, "
+                            "define as dictionary gid={cell_type: 'all'}."
                         )
 
             elif isinstance(gid, dict):
