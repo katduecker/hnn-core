@@ -119,25 +119,6 @@ def simulate_dipole(
     elif bsl_cor not in {"jones", "neymotin", "duecker", "none"}:
         raise ValueError("'bsl_cor' must be 'jones', 'neymotin', 'duecker' or 'none'")
 
-    # # check that the correct baseline correction is used with the model
-    # if bsl_cor == "jones" or bsl_cor == "neymotin":
-    #     if not any(
-    #         [
-    #             net._model_variant.startswith(allowed_var)
-    #             for allowed_var in ["jones", "neymotin", "law", "calcium"]
-    #         ]
-    #     ):
-    #         raise ValueError(
-    #             f"Model of variant {net._model_variant} called with bsl_cor='{bsl_cor}'."
-    #             " Ensure that the baseline correction used in simulate_dipole matches the model."
-    #         )
-    # elif bsl_cor == "duecker":
-    #     if not net._model_variant.startswith("duecker"):
-    #         raise ValueError(
-    #             f"Model of variant {net._model_variant} called with bsl_cor='{bsl_cor}'."
-    #             " Ensure that the baseline correction used in simulate_dipole matches the model."
-    #         )
-
     net._instantiate_drives(n_trials=n_trials, tstop=tstop)
     net._reset_rec_arrays()
 
