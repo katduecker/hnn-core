@@ -361,18 +361,20 @@ class Network:
     mesh_shape : tuple of int (default: (10, 10))
         Defines the (n_x, n_y) shape of the grid of pyramidal cells.
     pos_dict : dict of list of tuple (x, y, z), optional
-        Dictionary containing the coordinate positions of all cells.
-        Keys are 'L2_pyramidal', 'L5_pyramidal', 'L2_basket', 'L5_basket',
-        or any external drive name.
+        Dictionary containing the coordinate positions of all cells. Keys are
+        'L2_pyramidal', 'L5_pyramidal', 'L2_basket', 'L5_basket', or any external drive
+        name. If you specify "pos_dict", you MUST also specify your own "cell_types"
+        argument (see below).
     cell_types : dict of dict of (Cell | dict), optional
         Dictionary containing names of real cell types in the network (e.g. 'L2_basket')
-        as keys and child-dictionaries describing the cell type. The child-dictionary
-        contains two keys: "cell_object" and "cell_metadata". The value of "cell_object"
-        is the corresponding Cell instance of the cell type being described, and this
-        instance is used as a template for the other cells of its type in the
-        population. The value of "cell_metadata" is a dictionary containing several
-        key-values pairs that describe different aspects of the cell type, described
-        below:
+        as keys and child-dictionaries describing the cell type. If you specify
+        "cell_types", you MUST also specify your own "pos_dict" argument (see
+        above). The child-dictionary contains two keys: "cell_object" and
+        "cell_metadata". The value of "cell_object" is the corresponding Cell instance
+        of the cell type being described, and this instance is used as a template for
+        the other cells of its type in the population. The value of "cell_metadata" is a
+        dictionary containing several key-values pairs that describe different aspects
+        of the cell type, described below:
             - "morpho_type" : either "basket" or "pyramidal"
             - "electro_type" : either "inhibitory" or "excitatory"
             - "layer" : either "2" or "5"
@@ -485,6 +487,10 @@ class Network:
         # extracellular recordings (if applicable)
         self.rec_arrays = dict()
 
+        # simulation-time params
+        self._tstop = None
+        self._dt = None
+
         # contents of pos_dict determines all downstream inferences of
         # cell counts, real and artificial
         self._n_cells = 0  # used in tests and MPIBackend checks
@@ -505,57 +511,137 @@ class Network:
         self._N_pyr_y = mesh_shape[1]
 
         # Handle positions and cell types
-        if pos_dict is not None and cell_types is not None:
-            # Use provided positions and cell types
+        # ------------------------------------------------------------------------------
+        if cell_types is not None or pos_dict is not None:
+            # Input validation
+            # --------------------------------------------------------------------------
+            # If a user is specifying their own cell_types, they must also specify
+            # pos_dict:
+            if pos_dict is None:
+                raise ValueError(
+                    "If custom 'cell_types' are provided to Network, you must "
+                    "also provide a custom 'pos_dict'."
+                )
+            # Vice versa:
+            elif cell_types is None:
+                raise ValueError(
+                    "If a custom 'pos_dict' is provided to Network, you must "
+                    "also provide custom 'cell_types'."
+                )
+            # Test that the keys of pos_dict and cell_types are well-formed:
+            pos_dict_keys = set(pos_dict.keys())
+            if "origin" not in pos_dict_keys:
+                raise ValueError("Origin must be defined for your custom 'pos_dict'")
+            pos_dict_keys.remove("origin")
+            cell_type_keys = set(cell_types.keys())
+            if not (cell_type_keys <= pos_dict_keys):
+                raise ValueError(
+                    "All keys of 'pos_dict' must be present in 'cell_types'. "
+                    f"'pos_dict' keys: {pos_dict_keys}, 'cell_types' keys: {cell_type_keys}"
+                )
+            for ct in cell_types.keys():
+                if "zdist_origin" not in cell_types[ct]["cell_metadata"].keys():
+                    raise ValueError(
+                        "zdist_origin must be defined for each cell type in "
+                        "your custom 'cell_types' metadata"
+                    )
             _validate_type(pos_dict, dict, "pos_dict")
             _validate_type(cell_types, dict, "cell_types")
+
+            # Use provided positions and cell types
+            # --------------------------------------------------------------------------
             self.pos_dict = deepcopy(pos_dict)
 
             # Add cell types from provided dictionary
             for cell_name, cell_template in cell_types.items():
-                if cell_name in self.pos_dict:
-                    self._add_cell_type(
-                        cell_name, self.pos_dict[cell_name], cell_template=cell_template
-                    )
+                self._add_cell_type(
+                    cell_name,
+                    self.pos_dict[cell_name],
+                    cell_template=cell_template,
+                )
 
-            # read out inplane_distance
-            if hasattr(self, "_inplane_distance") is False:
-                inlay_dist = []
-                for cell_type in self.cell_types.keys():
-                    current_dist = np.mean(
-                        np.concatenate(
-                            (
-                                np.diff(
-                                    np.unique(np.array(self.pos_dict[cell_type])[:, 0])
-                                ),
-                                np.diff(
-                                    np.unique(np.array(self.pos_dict[cell_type])[:, 1])
-                                ),
-                            )
+            # Since we're in the initializer, we must calculate our inplane distance
+            # strictly from the custom pos_dict:
+            inlay_dist = []
+            for cell_type in self.cell_types.keys():
+                # For this cell type, this does the following:
+                # 1. Grab all the unique, sorted x-coordinates of the cell type.
+                # 2. Grab all the distances between each unique, sorted x-coordinate of
+                #     the cell type.
+                # 3. Grab all the unique, sorted y-coordinates of the cell type.
+                # 4. Grab all the distances between each unique, sorted y-coordinate of
+                #    the cell type.
+                # 5. Check that there is at least one distance in the x and y
+                #     directions. If not, warn the user, and override the in-plane
+                #     distance for that dimension to be 1.0, in order to prevent NaNs.
+                # 6. Concatenate the provided distances into a single array, and take
+                #     the mean. This gets you an "average in-plane distance" for this
+                #     cell type in the X and Y (but not Z!) directions.
+                x_diffs = np.diff(np.unique(np.array(self.pos_dict[cell_type])[:, 0]))
+                y_diffs = np.diff(np.unique(np.array(self.pos_dict[cell_type])[:, 1]))
+
+                for dim_diffs, dimension in [(x_diffs, "X"), (y_diffs, "Y")]:
+                    if len(dim_diffs) == 0:
+                        warnings.warn(
+                            f"Zero distance between cells of type '{cell_type}' "
+                            f"in the {dimension} dimension in the provided 'pos_dict'. "
+                            "\n"
+                            "This can happen if: "
+                            "\n"
+                            "- you are simulating a network with only a single cell of "
+                            "this cell type, e.g. using `mesh_shape=(1, 1)`."
+                            "\n"
+                            f"- the positions of '{cell_type}' in your 'pos_dict' "
+                            f"are all the same in the {dimension} dimension. "
+                            "\n"
+                            "If this is not intentional, check your 'pos_dict'!"
                         )
+                        # Note for developers: In the warned cases above, it should be
+                        # safe to override the problematic dimension's in-plane distance
+                        # to 1.0. This allows the problematic dimension to still use its
+                        # full lamtha value when it is used in
+                        #
+                        # Cell.parconnect_from_src ->
+                        # cell.py::_get_gaussian_connection ->
+                        # cell.py::_calculate_gaussian
+                        #
+                        # instead of hitting a divide-by-NaN error. Additionally, if the
+                        # OTHER dimension has valid in-plane distances (such as cells in
+                        # a line), then those will still be taken into account when
+                        # ultimately calculating the `self._inplane_distance` below.
+                        if dimension == "X":
+                            x_diffs = np.array([1.0])
+                        elif dimension == "Y":
+                            y_diffs = np.array([1.0])
+
+                current_dist = np.mean(np.concatenate((x_diffs, y_diffs)))
+                inlay_dist.append(current_dist)
+
+            self._inplane_distance = np.min(np.array(inlay_dist))
+
+            # Since we're in the initializer, we must also calculate our layer separation
+            # strictly from the custom pos_dict:
+            for cell_type in self.cell_types:
+                if self.cell_types[cell_type]["cell_metadata"]["zdist_origin"] == 1:
+                    # Define "layer separation" using the mean z-coordinate (the third
+                    # element of the pos_dict tuples) of the celltype that has
+                    # `zdist_origin == 1` in its metadata (typically the layer
+                    # 2/3 pyramidal cell type). This is meant to identify the distance
+                    # between the somas of pyramidal cells in layer 2/3 versus those in
+                    # layer 5.
+                    #
+                    self._layer_separation = np.mean(
+                        np.array(self.pos_dict[cell_type])[:, 2]
                     )
-                    inlay_dist.append(current_dist)
-                self._inplane_distance = np.min(np.array(inlay_dist))
 
-            # read out layer separation
-            if hasattr(self, "_layer_separation") is False:
-                for cell_type in self.cell_types:
-                    if (
-                        "zdist_origin"
-                        in self.cell_types[cell_type]["cell_metadata"].keys()
-                    ):
-                        if (
-                            self.cell_types[cell_type]["cell_metadata"]["zdist_origin"]
-                            == 1
-                        ):
-                            self._layer_separation = np.mean(
-                                np.array(self.pos_dict[cell_type])[:, 2]
-                            )
+            # Make a backup copies of all the position information, in case the user
+            # wants to reset everything to original cell positions
+            self._original_pos_dict = deepcopy(self.pos_dict)
+            self._original_inplane_distance = deepcopy(self._inplane_distance)
+            self._original_layer_separation = deepcopy(self._layer_separation)
 
-            # update drives to be positioned at network origin
-            for drive_name, drive in self.external_drives.items():
-                pos = [self.pos_dict["origin"]] * drive["n_drive_cells"]
-                self.pos_dict[drive_name] = pos
+            # Since we're in the initializer, we do not need to reposition any drives
+            # after creating the above.
 
         else:
             # Default behavior - create standard network
@@ -583,10 +669,29 @@ class Network:
             self._inplane_distance = 1.0  # XXX hard-coded default
             self._layer_separation = 1307.4  # XXX hard-coded default
 
-            self.set_cell_positions(
+            # Set the relative positions of cells (pos_dict) assuming default cell
+            # types. This arranges them in a square grid.
+            layer_dict = _create_cell_coords(
+                n_pyr_x=self._N_pyr_x,
+                n_pyr_y=self._N_pyr_y,
+                z_coord=self._layer_separation,
                 inplane_distance=self._inplane_distance,
-                layer_separation=self._layer_separation,
             )
+
+            # Map layers to cell types, for default mapping
+            self.pos_dict = {
+                "L5_pyramidal": layer_dict["L5_bottom"],
+                "L2_pyramidal": layer_dict["L2_bottom"],
+                "L5_basket": layer_dict["L5_mid"],
+                "L2_basket": layer_dict["L2_mid"],
+                "origin": layer_dict["origin"],
+            }
+
+            # Make a backup copies of all the position information, in case the user
+            # wants to reset everything to original cell positions
+            self._original_pos_dict = deepcopy(self.pos_dict)
+            self._original_inplane_distance = deepcopy(self._inplane_distance)
+            self._original_layer_separation = deepcopy(self._layer_separation)
 
             # populates self.gid_ranges for the 1st time: order matters for
             # NetworkBuilder!
@@ -597,11 +702,9 @@ class Network:
                     cell_template=cell_template,
                 )
 
+        # Must happen after cell types are added
         if add_drives_from_params:
             _add_drives_from_params(self)
-
-        self._tstop = None
-        self._dt = None
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -641,27 +744,59 @@ class Network:
 
         return True
 
-    def set_cell_positions(
+    def _reset_to_original_cell_positions(self):
+        """Reset the relative positions of cells to their original positions.
+
+        This resets ``Network.pos_dict``, ``Network._inplane_distance``, and
+        ``Network._layer_separation`` to their original values, which were set when the
+        Network was first created. This includes whether the original positions were
+        using the ``Network`` defaults, or if a user passed their own ``pos_dict`` and
+        ``cell_types`` to the constructor and are using the calculated in-plane distance
+        and layer separation from that custom ``pos_dict``.
+
+        This can be used to reset your cell positions to a known-good state after
+        calling ``Network.update_cell_positions``.
+        """
+        self.pos_dict = deepcopy(self._original_pos_dict)
+        self._inplane_distance = deepcopy(self._original_inplane_distance)
+        self._layer_separation = deepcopy(self._original_layer_separation)
+
+        # update drives to be positioned at network origin
+        for drive_name, drive in self.external_drives.items():
+            pos = [self.pos_dict["origin"]] * drive["n_drive_cells"]
+            self.pos_dict[drive_name] = pos
+
+    def update_cell_positions(
         self,
-        *,
         inplane_distance=None,
         layer_separation=None,
     ):
-        """Set relative positions of cells arranged in a square grid
+        """Change relative positions of cells arranged in a square grid.
 
-        Note that it is possible to change only a subset of the parameters
-        (the default value of each is None, which implies no change).
+        Note that it is possible to change one of the parameters without changing the
+        other. You must pass at least one argument.
 
         Parameters
         ----------
-        inplane_distance : float
+        inplane_distance : float, optional
             The in plane-distance (in um) between pyramidal cell somas in the
             square grid. Note that this parameter does not affect the amplitude
             of the dipole moment.
-        layer_separation : float
+        layer_separation : float, optional
             The separation of pyramidal cell soma layers 2/3 and 5. Note that
             this parameter does not affect the amplitude of the dipole moment.
         """
+        # Input validation
+        # ------------------------------------------------------------------------------
+        if inplane_distance is None and layer_separation is None:
+            raise ValueError(
+                "At least one of inplane_distance or layer_separation must be provided."
+            )
+        if np.isnan(self._inplane_distance) or np.isclose(self._inplane_distance, 0.0):
+            raise ValueError(
+                "Cannot reset cell positions because the current in-plane distance "
+                "is NaN or zero. Something has gone wrong at Network creation time."
+            )
         if inplane_distance is None:
             inplane_distance = self._inplane_distance
         _validate_type(inplane_distance, (float, int), "inplane_distance")
@@ -669,7 +804,6 @@ class Network:
             raise ValueError(
                 f"In-plane distance must be positive, got: {inplane_distance}"
             )
-
         if layer_separation is None:
             layer_separation = self._layer_separation
         _validate_type(layer_separation, (float, int), "layer_separation")
@@ -678,55 +812,87 @@ class Network:
                 f"Layer separation must be positive, got: {layer_separation}"
             )
 
-        # if there is a pos_dict, adjust cell positions (if mesh_shape > (1,1))
-        if (len(self.pos_dict) > 0) and not np.isnan(self._inplane_distance):
-            scale = inplane_distance / self._inplane_distance
-            for cell_type in self.cell_types:
-                zdist = (
-                    self.cell_types[cell_type]["cell_metadata"]["zdist_origin"]
-                    * layer_separation
+        # pos_dict shifting
+        # ------------------------------------------------------------------------------
+        # There should always be an existing pos_dict by the point in time when this
+        # function is called, since it can only be called after the Network is
+        # initialized.
+        xy_scaling = inplane_distance / self._inplane_distance
+        for cell_type in self.cell_types:
+            new_zdist = (
+                self.cell_types[cell_type]["cell_metadata"]["zdist_origin"]
+                * layer_separation
+            )
+            # Update the positions of the cells in pos_dict:
+            # - X and Y coordinates are scaled by the ratio of the new in-plane distance
+            #     to the old one, so that their final location is consistent with the
+            #     new in-plane distance.
+            # - Z coordinates: Because `zdist_origin` is already normalized to [0, 1],
+            #     the Z-coordinate is simply multiplied by the new layer separation
+            #     distance.
+            self.pos_dict[cell_type] = [
+                (
+                    pos[0] * xy_scaling,
+                    pos[1] * xy_scaling,
+                    new_zdist,
                 )
-                self.pos_dict[cell_type] = [
-                    (pos[0] * scale, pos[1] * scale, zdist)
-                    for pos in self.pos_dict[cell_type]
-                ]
-            # scale origin and update drive positions
-            origin = self.pos_dict["origin"]
-            self.pos_dict["origin"] = (origin[0] * scale, origin[1] * scale, origin[2])
-            for drive_name in self.external_drives:
-                self.pos_dict[drive_name] = [self.pos_dict["origin"]] * len(
-                    self.pos_dict[drive_name]
-                )
-            self._inplane_distance = inplane_distance
-            self._layer_separation = layer_separation
+                for pos in self.pos_dict[cell_type]
+            ]
 
-        # If cell positions are set for the first time -> default model with default cell names
+        # Update the position of the origin in pos_dict:
+        # - X and Y coordinates are scaled similarly to the celltypes above, via the
+        #     ratio of the new in-plane distance to the old one.
+        # - The Z coordinate is unchanged since it already defines the '0' value for
+        #     `zdist_origin` metadata of cell types.
+        origin = self.pos_dict["origin"]
+        self.pos_dict["origin"] = (
+            origin[0] * xy_scaling,
+            origin[1] * xy_scaling,
+            origin[2],
+        )
 
-        elif not np.isnan(self._inplane_distance):  # ensure mesh_shape>(1,1)
-            # Get layer positions using layer dict
-            layer_dict = _create_cell_coords(
-                n_pyr_x=self._N_pyr_x,
-                n_pyr_y=self._N_pyr_y,
-                z_coord=layer_separation,
-                inplane_distance=inplane_distance,
+        # Update the position of the drives in pos_dict:
+        # - Drives are always positioned at the origin of the network (see
+        # https://github.com/jonescompneurolab/hnn-core/blob/5ca983a3dd53b6e749c377b24bcba64773debbd3/hnn_core/network.py#L1396
+        # so we simply reset their positions to the new origin of the network.
+        for drive_name in self.external_drives:
+            self.pos_dict[drive_name] = [self.pos_dict["origin"]] * len(
+                self.pos_dict[drive_name]
             )
 
-            # Map layers to cell types, for default mapping
-            self.pos_dict = {
-                "L5_pyramidal": layer_dict["L5_bottom"],
-                "L2_pyramidal": layer_dict["L2_bottom"],
-                "L5_basket": layer_dict["L5_mid"],
-                "L2_basket": layer_dict["L2_mid"],
-                "origin": layer_dict["origin"],
-            }
+        self._inplane_distance = inplane_distance
+        self._layer_separation = layer_separation
 
-            # update drives to be positioned at network origin
-            for drive_name, drive in self.external_drives.items():
-                pos = [self.pos_dict["origin"]] * drive["n_drive_cells"]
-                self.pos_dict[drive_name] = pos
+    def set_cell_positions(
+        self,
+        inplane_distance=None,
+        layer_separation=None,
+    ):
+        """Reset relative positions of cells arranged in a square grid (Deprecated)
 
-            self._inplane_distance = inplane_distance
-            self._layer_separation = layer_separation
+        This function is deprecated in favor of `Network.update_cell_positions`. Note
+        that it is possible to change one of the parameters without changing the other.
+
+        Parameters
+        ----------
+        inplane_distance : float, optional
+            The in plane-distance (in um) between pyramidal cell somas in the
+            square grid. Note that this parameter does not affect the amplitude
+            of the dipole moment.
+        layer_separation : float, optional
+            The separation of pyramidal cell soma layers 2/3 and 5. Note that
+            this parameter does not affect the amplitude of the dipole moment.
+        """
+        warnings.warn(
+            "`Network.set_cell_positions` will be deprecated in favor of "
+            "`Network.update_cell_positions` in future releases.",
+            FutureWarning,
+            stacklevel=1,
+        )
+        self.update_cell_positions(
+            inplane_distance=inplane_distance,
+            layer_separation=layer_separation,
+        )
 
     def copy(self):
         """Return a copy of the Network instance
@@ -1181,7 +1347,7 @@ class Network:
         synaptic_delays=0.1,
         space_constant=3.0,
         probability=1.0,
-        conn_seed=None,
+        conn_seed=3,
     ):
         """Add an external drive from explicitly defined spike trains.
 

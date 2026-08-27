@@ -937,6 +937,211 @@ def plot_spikes_raster(
     return ax.get_figure()
 
 
+def plot_firing_rate_time(
+    cell_response,
+    window_length,
+    trial_idx=None,
+    ax=None,
+    show=True,
+    cell_types=None,
+    colors=None,
+    show_legend=True,
+    sharex=False,
+    sharey=False,
+    xticks=None,
+    yticks=None,
+    xlim=None,
+    ylim=None,
+    xlabel="time (ms)",
+    ylabel="firing rate (Hz)",
+):
+    """Plot time course of firing rates
+
+    Parameters
+    ----------
+    window_length : int | float
+        Length of the sliding window over which mean rates are calculated, in ms.
+    trial_idx : int | list of int | None
+        Trial index (or list of indices) to be plotted. If None, mean rate over
+        all trials is plotted, and standard deviation is indicated by shading.
+    ax : instance of matplotlib axis | None
+        An axis object from matplotlib. If None, a new figure is created.
+    show : bool
+        If True, show the figure.
+    cell_types : list of str | None
+        List of cell types to plot. If None, all cell types are plotted.
+    colors : list of str | None
+        Optional custom colors to plot. Default will use the colors defined in cell metadata.
+    show_legend : bool
+        If True, show the legend with colors for cell types
+    sharex : bool
+        If True, subplot x-axes will be shared. Only used when creating a new
+        figure (i.e., when `ax` is None).
+    sharey : bool
+        If True, subplot y-axes will be shared. Only used when creating a new
+        figure (i.e., when `ax` is None).
+    xticks : array-like | None
+        Custom x-axis tick locations. If None, matplotlib's default is used.
+    yticks : array-like | None
+        Custom y-axis tick locations. If None, matplotlib's default is used.
+    xlim : tuple of (float, float) | None
+        Custom x-axis limits. If None, defaults to the full time range.
+    ylim : tuple of (float, float) | None
+        Custom y-axis limits. If None, matplotlib's default is used.
+    xlabel : str
+        Label for the x-axis.
+    ylabel : str
+        Label for the y-axis.
+
+    Returns
+    -------
+    fig : instance of matplotlib Figure
+        The matplotlib figure object.
+    """
+    # Calculate firing rates and validate some arguments
+    # ----------------------------------------------------------------------------------
+    # This may seem strange to calculate our firing rates before we've validated any
+    # input arguments, but this allows us to use the extensive validation of
+    # 'window_length', 'cell_types', and 'trial_idx' that is already implemented in
+    # CellResponse.rate_over_time (via `CellResponse._preprocess_rate_over_time_args`)
+    fr_cell_types = cell_response.rate_over_time(
+        window_length=window_length,
+        cell_types=cell_types,
+        trial_idx=trial_idx,
+    )
+
+    # CellResponse's Times have already been validated above.
+    times = cell_response.times
+    # We still need to preprocess the cell_types argument into its standard form, since
+    # it is used later in the function to set colors and labels, but it has already been
+    # validated above. This control flow block is taken from
+    # CellResponse._preprocess_rate_over_time_args.
+    if cell_types is None:
+        cell_types = cell_response._cell_type_names
+    elif isinstance(cell_types, str):
+        cell_types = [cell_types]
+    elif isinstance(cell_types, list):
+        pass
+
+    # Validate/Process the rest of our arguments (except for colors, which is later)
+    # ----------------------------------------------------------------------------------
+    cell_type_metadata = getattr(cell_response, "_cell_type_metadata", None)
+    _validate_type(colors, (list, dict, None), "color", "list of str, or dict")
+
+    # create ax if it doesn't exist
+    if ax is None:
+        _, ax = plt.subplots(
+            len(fr_cell_types), 1, constrained_layout=True, sharey=sharey, sharex=sharex
+        )
+
+    # if ax is subplot axis
+    if type(ax) is matplotlib.axes._axes.Axes and len(fr_cell_types) == 1:
+        ax = [ax]
+    elif type(ax) is matplotlib.axes._axes.Axes and len(fr_cell_types) > 1:
+        raise ValueError(
+            f"ax and cell_types must have the same len but have len 1 and {len(fr_cell_types)}."
+            " Hint: Define one subplot panel per cell type."
+        )
+
+    # if ax is multiple subplot axes
+    elif type(ax) is np.ndarray and len(ax) != len(fr_cell_types):
+        if ax.size == len(fr_cell_types):
+            raise ValueError(
+                f"ax and fr_cell_types must have the same len but have len {len(ax)} and {len(fr_cell_types)}."
+                " Use ax.flatten() to plot each cell type in one subplot."
+            )
+        else:
+            raise ValueError(
+                f"ax and cell_types must have the same len but have len {len(ax)} and {len(fr_cell_types)}."
+                " Hint: Define one subplot panel per cell type."
+            )
+
+    if xlim is None:
+        xlim = (times[0], times[-1])
+    _validate_type(show_legend, bool, "show_legend", "bool")
+    _validate_type(sharex, bool, "sharex", "bool")
+    _validate_type(sharey, bool, "sharey", "bool")
+    _validate_type(
+        xticks, (list, np.ndarray, None), "xticks", "list, np.ndarray, or None"
+    )
+    _validate_type(
+        yticks, (list, np.ndarray, None), "yticks", "list, np.ndarray, or None"
+    )
+    _validate_type(xlim, (tuple, list, None), "xlim", "tuple, list, or None")
+    _validate_type(ylim, (tuple, list, None), "ylim", "tuple, list, or None")
+    _validate_type(xlabel, str, "xlabel", "str")
+    _validate_type(ylabel, str, "ylabel", "str")
+
+    # Set colors, which requires some input validation AND the fact that we have already
+    # calculated of the firing rates:
+    # ----------------------------------------------------------------------------------
+    if cell_type_metadata is not None and "color" in cell_type_metadata[cell_types[0]]:
+        cell_colors = {cell: meta["color"] for cell, meta in cell_type_metadata.items()}
+    else:
+        default_colors = plt.rcParams["axes.prop_cycle"].by_key()["color"][
+            : len(cell_types)
+        ]
+        cell_colors = {cell: color for cell, color in zip(cell_types, default_colors)}
+
+    if colors:
+        if isinstance(colors, list):
+            if len(colors) != len(cell_types):
+                raise ValueError(
+                    f"Number of colors must be equal to number of "
+                    f"cell types. {len(colors)} colors provided "
+                    f"for {len(cell_types)} cell types."
+                )
+            cell_colors = {cell: color for cell, color in zip(cell_types, colors)}
+        if isinstance(colors, dict):
+            # Check valid cell types
+            if not set(colors.keys()).issubset(set(fr_cell_types.keys())):
+                raise ValueError(
+                    "Invalid cell type provided. "
+                    f"Must be of set {fr_cell_types.keys()}. "
+                    f"Got {colors.keys()}"
+                )
+            cell_colors.update(colors)
+
+    # Plotting
+    # ----------------------------------------------------------------------------------
+    for c, cell_type in enumerate(fr_cell_types):
+        ax[c].plot(
+            times,
+            np.mean(fr_cell_types[cell_type], axis=0),
+            color=cell_colors[cell_type],
+            label=cell_type,
+        )
+        ax[c].fill_between(
+            times,
+            np.mean(fr_cell_types[cell_type], axis=0)
+            - np.std(fr_cell_types[cell_type], axis=0),
+            np.mean(fr_cell_types[cell_type], axis=0)
+            + np.std(fr_cell_types[cell_type], axis=0),
+            color=cell_colors[cell_type],
+            alpha=0.4,
+            rasterized=True,
+        )
+        ax[c].set_xlim(xlim)
+
+        if xticks is not None:
+            ax[c].set_xticks(xticks)
+
+        ax[c].set_ylim(ylim)
+        if yticks is not None:
+            ax[c].set_yticks(yticks)
+        ax[c].spines["top"].set_visible(False)
+        ax[c].spines["right"].set_visible(False)
+        if show_legend:
+            ax[c].legend(loc="upper right")
+
+    ax[c].set_ylabel(ylabel)
+    ax[c].set_xlabel(xlabel)
+
+    plt_show(show)
+
+    return ax
+
+
 def plot_cells(net, ax=None, show=True, colors=None, markers=None):
     """Plot the cells using Network.pos_dict.
 
