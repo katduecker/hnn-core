@@ -32,7 +32,7 @@ from hnn_core.network import (
     pick_connection,
 )
 from hnn_core.network_builder import NetworkBuilder
-from hnn_core.network_models import add_erp_drives_to_jones_model, duecker_ET_model
+from hnn_core.network_models import add_erp_drives_to_jones_model
 from hnn_core.viz import plot_dipole
 
 hnn_core_root = op.dirname(hnn_core.__file__)
@@ -622,6 +622,7 @@ def test_duecker_ET_model_cell_params():
         params[f"gbar_{cell_name}_L2Pyr_gabaa"] = 0.0
         with pytest.raises(ValueError, match=f"Parameters found for {cell_name}"):
             duecker_ET_model(params=params, mesh_shape=mesh_shape)
+
 
 @pytest.mark.parametrize("mesh_shape", [(1, 1), (3, 3), (10, 10)])
 def test_network_cell_positions(mesh_shape):
