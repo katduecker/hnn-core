@@ -430,7 +430,6 @@ class Cell:
             [
                 "build",
                 "copy",
-                "create_tonic_bias",
                 "define_shape",
                 "distance_section",
                 "gid",
@@ -757,7 +756,7 @@ class Cell:
             dpp.ztan = seg_lens_z[-1]
         self.dipole = h.Vector().record(self.dpl_ref)
 
-    def create_tonic_bias(
+    def _create_tonic_bias(
         self, amplitude, t0, tstop, section="soma", loc=0.5, gid=None
     ):
         """Create tonic bias at defined section.
