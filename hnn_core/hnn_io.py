@@ -507,7 +507,6 @@ def dict_to_network(net_data, read_drives=True, read_external_biases=True):
     params["celsius"] = net_data["celsius"]
     params["threshold"] = net_data["threshold"]
     params["model_variant"] = net_data.get("model_variant", None)
-    params["sim_prefix"] = net_data.get("sim_prefix", None)
     mesh_shape = (net_data["N_pyr_x"], net_data["N_pyr_y"])
 
     # Instantiating network
