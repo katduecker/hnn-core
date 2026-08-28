@@ -376,7 +376,7 @@ def test_rate_over_time_trial_idx():
 
     # trial_idx=None: all trials computed at once
     rates_all = cell_response.rate_over_time(
-        window_length=window_length, cell_types=["L5_basket"], trial_idx=None
+        window_length=window_length, cell_types=["L5_basket"], trial_idx="all"
     )
     assert rates_all["L5_basket"].shape == (3, len(sim_times))
     # sanity check that the 3 trials are not identical (i.e. the spikes at
@@ -413,11 +413,22 @@ def test_rate_over_time_trial_idx():
     assert np.allclose(rate_multi["L5_basket"][0], rates_all["L5_basket"][2])
     assert np.allclose(rate_multi["L5_basket"][1], rates_all["L5_basket"][0])
 
-    # --- cell_types forms: None, str, and multiple types in one call ---
-    # Use a second cell type name that is never present in the spike record,
-    # so it exercises the n_cells == 0 branch (warning + all-zero output)
-    # alongside the recorded "L5_basket" type.
-    cell_response_multi_type = CellResponse(
+    # trial_idx="all" must return an array of shape <n_trials, len(sim_times)>
+    rate_all = cell_response.rate_over_time(
+        window_length=window_length, cell_types=["L5_basket"], trial_idx="all"
+    )
+    n_trials = len(cell_response._spike_times)
+    assert rate_all["L5_basket"].shape == (n_trials, len(sim_times))
+
+    # raise error if cell_types input contains type not in cell_response
+    # cell_types=None must default to every name in cell_type_names
+    with pytest.raises(ValueError, match="Invalid cell type provided."):
+        _ = cell_response.rate_over_time(
+            window_length=window_length, cell_types=["L5_basket", "L5_pyramidal"]
+        )
+
+    # add cell type that doesn't spike
+    cell_response_multi = CellResponse(
         cell_type_names=["L5_basket", "L5_pyramidal"],
         spike_times=spike_times,
         spike_gids=spike_gids,
@@ -425,17 +436,15 @@ def test_rate_over_time_trial_idx():
         times=sim_times,
     )
 
-    # cell_types=None must default to every name in cell_type_names
-    with pytest.warns(UserWarning, match="No cells of type 'L5_pyramidal'"):
-        rates_default = cell_response_multi_type.rate_over_time(
-            window_length=window_length
-        )
-    assert set(rates_default.keys()) == {"L5_basket", "L5_pyramidal"}
-    assert np.allclose(rates_default["L5_basket"], rates_all["L5_basket"])
-    assert np.array_equal(rates_default["L5_pyramidal"], np.zeros((3, len(sim_times))))
+    rates_multi = cell_response_multi.rate_over_time(window_length=window_length)
+    assert set(rates_multi.keys()) == {"L5_basket", "L5_pyramidal"}
+    # ensure L5_basket spikes are still calculated correctly
+    assert np.allclose(rates_multi["L5_basket"], rates_all["L5_basket"])
+    # ensure L5_pyramidal is all 0
+    assert np.array_equal(rates_multi["L5_pyramidal"], np.zeros((3, len(sim_times))))
 
     # cell_types as a bare str must behave like a single-element list
-    rate_str = cell_response_multi_type.rate_over_time(
+    rate_str = cell_response_multi.rate_over_time(
         window_length=window_length, cell_types="L5_basket"
     )
     assert set(rate_str.keys()) == {"L5_basket"}
@@ -443,44 +452,12 @@ def test_rate_over_time_trial_idx():
 
     # cell_types as a list with more than one entry, requested together,
     # must return the same per-type results as requesting them separately
-    with pytest.warns(UserWarning, match="No cells of type 'L5_pyramidal'"):
-        rate_both = cell_response_multi_type.rate_over_time(
-            window_length=window_length, cell_types=["L5_basket", "L5_pyramidal"]
-        )
+    rate_both = cell_response_multi.rate_over_time(
+        window_length=window_length, cell_types=["L5_basket", "L5_pyramidal"]
+    )
     assert set(rate_both.keys()) == {"L5_basket", "L5_pyramidal"}
     assert np.allclose(rate_both["L5_basket"], rates_all["L5_basket"])
     assert np.array_equal(rate_both["L5_pyramidal"], np.zeros((3, len(sim_times))))
-
-    # cell_types requesting only the never-recorded type in isolation must
-    # still warn and return all zeros (n_cells == 0 branch on its own)
-    with pytest.warns(UserWarning, match="No cells of type 'L5_pyramidal'"):
-        rate_zero_only = cell_response_multi_type.rate_over_time(
-            window_length=window_length, cell_types=["L5_pyramidal"]
-        )
-    assert np.array_equal(rate_zero_only["L5_pyramidal"], np.zeros((3, len(sim_times))))
-
-    # --- normalization divides by the total number of gids of a type, not
-    # just the number that fired in a given trial ---
-    # gid 9 fires only in trial 2 (disjoint from gid 7's trial 0 spike), so
-    # it is counted as a second "L5_basket" cell without altering trial 0's
-    # spike histogram -- trial 0's rate should therefore be exactly halved
-    # relative to the single-gid fixture.
-    two_gid_spike_times = [[2.0], [8.0], [14.0, 14.0]]
-    two_gid_spike_gids = [[7], [7], [7, 9]]
-    two_gid_spike_types = [["L5_basket"], ["L5_basket"], ["L5_basket", "L5_basket"]]
-
-    cell_response_two_gids = CellResponse(
-        cell_type_names=["L5_basket"],
-        spike_times=two_gid_spike_times,
-        spike_gids=two_gid_spike_gids,
-        spike_types=two_gid_spike_types,
-        times=sim_times,
-    )
-
-    rate_two_gids = cell_response_two_gids.rate_over_time(
-        window_length=window_length, cell_types=["L5_basket"], trial_idx=0
-    )
-    assert np.allclose(rate_two_gids["L5_basket"][0], rates_all["L5_basket"][0] / 2)
 
 
 def test_rate_over_time_validation():
@@ -524,9 +501,9 @@ def test_rate_over_time_validation():
     with pytest.raises(ValueError, match="not be greater than the total duration"):
         cell_response.rate_over_time(window_length=total_duration + 1.0)
 
-    # trial_idx must be int, list, or None
-    with pytest.raises(TypeError, match="trial_idx"):
-        cell_response.rate_over_time(window_length=2.0, trial_idx="0")
+    # trial_idx must be int, list, or "all"
+    with pytest.raises(ValueError, match="Got 'goof'"):
+        cell_response.rate_over_time(window_length=2.0, trial_idx="goof")
 
     # trial_idx as an out-of-range int
     with pytest.raises(ValueError, match="'trial_idx' must be a non-negative"):

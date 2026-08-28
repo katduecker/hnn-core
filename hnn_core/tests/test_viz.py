@@ -565,7 +565,9 @@ class TestCellResponsePlotters:
         cell_response = net.cell_response
 
         # Invalid trial_idx type raises a TypeError
-        with pytest.raises(TypeError, match="trial_idx must be an instance of"):
+        with pytest.raises(
+            ValueError, match="'trial_idx' must be a non-negative integer"
+        ):
             cell_response.plot_firing_rate_time(
                 window_length=10, trial_idx="blah", show=False
             )

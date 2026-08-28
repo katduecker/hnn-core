@@ -244,17 +244,18 @@ class CellResponse(object):
             spike_types += [list(spike_types_trial)]
         self._spike_types = spike_types
 
-    def _gids_from_spikes(self, cell_type):
-        """Sort unique gids of ``cell_type`` that fired at least once.
-
-        Derived from the recorded spikes, pooled across all trials so a cell
-        that is silent in one trial still counts if it fires in another. Note
-        that cells which never spike in any trial cannot be recovered this way.
+    def _gids_from_spikes(self, cell_type, trial_idx="all"):
+        """Count how many gids per cell type spiked over all trials.
+        This function allows mean_rates to be used with gid_ranges=None.
 
         Parameters
         ----------
         cell_type : str
             Cell type name, e.g. 'L5_pyramidal'.
+        trial_idx : str | int | list of int
+            Trial index, if 'all' return gids over all trials,
+            if int, return gids that spiked in individual trial,
+            if list, return gids that spiked over trials in list.
 
         Returns
         -------
@@ -262,9 +263,23 @@ class CellResponse(object):
             Sorted unique gids of ``cell_type`` observed in the spike record.
         """
         gids, types = [], []
-        for trial_gids, trial_types in zip(self._spike_gids, self._spike_types):
+
+        if trial_idx == "all":
+            for trial_gids, trial_types in zip(self._spike_gids, self._spike_types):
+                gids.extend(trial_gids)
+                types.extend(trial_types)
+        elif isinstance(trial_idx, list):
+            for tidx in trial_idx:
+                trial_gids = self._spike_gids[tidx]
+                trial_types = self._spike_types[tidx]
+                gids.extend(trial_gids)
+                types.extend(trial_types)
+        elif isinstance(trial_idx, int):
+            trial_gids = self._spike_gids[trial_idx]
+            trial_types = self._spike_types[trial_idx]
             gids.extend(trial_gids)
             types.extend(trial_types)
+
         gids = np.array(gids)
         types = np.array(types)
         if len(gids) == 0:
@@ -281,17 +296,20 @@ class CellResponse(object):
         tstop : int | float | None
             Value defining the stop time of all trials.
         gid_ranges : dict of lists or range objects | None
-            Dictionary with keys 'evprox1', 'evdist1' etc.
+            Dictionary with keys, e.g. net.gid_ranges
             containing the range of Cell or input IDs of different
             cell or input types. If None (default), the number of cells
             per type is inferred from the recorded spikes.
         mean_type : str
             'all' : Average over trials and cells
-                Returns mean rate for cell types
+                Returns mean firing rate over time, trials, and gids, per cell type.
+                Returns: `spike_rates[cell_type] = <scalar>`
             'trial' : Average over cell types
-                Returns trial mean rate for cell types
+                Returns mean firing rate over time and gids, per trials and cell type.
+                Returns: `spike_rates[cell_type] = <list of <scalar>, one per trial>`
             'cell' : Average over individual cells
-                Returns trial mean rate for individual cells
+                Returns mean firing rate averaged over time, per gid, trial and cell type.
+                Returns: `spike_rates[cell_type] = <list of <list of <scalar>, one per cell>, one per trial>`
 
         Returns
         -------
@@ -313,55 +331,47 @@ class CellResponse(object):
             raise ValueError("tstop must be greater than tstart")
 
         for cell_type in self._cell_type_names:
+            # if gid_ranges defined by user
             if gid_ranges is not None:
                 cell_type_gids = np.array(gid_ranges[cell_type])
+            # if gid_ranges not defined by user, calculate number of gids
+            # per type as number of gids that fired at least once.
             else:
                 cell_type_gids = self._gids_from_spikes(cell_type)
             n_trials, n_cells = len(self._spike_times), len(cell_type_gids)
-            gid_spike_rate = np.zeros((n_trials, n_cells))
 
-            trial_data = zip(self._spike_types, self._spike_gids)
-            for trial_idx, (spike_types, spike_gids) in enumerate(trial_data):
-                trial_type_mask = np.isin(spike_types, cell_type)
-                gids, gid_counts = np.unique(
-                    np.array(spike_gids)[trial_type_mask], return_counts=True
-                )
-
-                gid_spike_rate[trial_idx, np.isin(cell_type_gids, gids)] = (
-                    gid_counts / (tstop - tstart)
-                ) * 1000  # conversion to go from simulation time in ms to rates of Hz
-
-            if mean_type == "all":
-                if n_cells > 0:
-                    spike_rates[cell_type] = np.mean(gid_spike_rate.mean(axis=1))
-                else:
-                    warn(
-                        f"No cells of type '{cell_type}' found; firing rate for this "
-                        "cell type will be 0.0"
-                    )
+            # if this cell type had no spikes
+            if n_cells == 0:
+                if mean_type == "all":
                     spike_rates[cell_type] = 0.0
-
-            elif mean_type == "trial":
-                if n_cells > 0:
-                    spike_rates[cell_type] = np.mean(gid_spike_rate, axis=1).tolist()
-                else:
-                    warn(
-                        f"No cells of type '{cell_type}' found; firing rate for this "
-                        "cell type will be 0.0"
-                    )
+                elif mean_type == "trial":
                     spike_rates[cell_type] = [0.0] * n_trials
+                elif mean_type == "cell":
+                    spike_rates[cell_type] = [[0.0] for _ in range(n_trials)]
 
-            elif mean_type == "cell":
-                if n_cells > 0:
+            # if there are spikes, calculate respective averages
+            else:
+                gid_spike_rate = np.zeros((n_trials, n_cells))
+
+                trial_data = zip(self._spike_types, self._spike_gids)
+                for trial_idx, (spike_types, spike_gids) in enumerate(trial_data):
+                    trial_type_mask = np.isin(spike_types, cell_type)
+                    gids, gid_counts = np.unique(
+                        np.array(spike_gids)[trial_type_mask], return_counts=True
+                    )
+
+                    gid_spike_rate[trial_idx, np.isin(cell_type_gids, gids)] = (
+                        (gid_counts / (tstop - tstart)) * 1000
+                    )  # conversion to go from simulation time in ms to rates of Hz
+
+                if mean_type == "all":
+                    spike_rates[cell_type] = np.mean(gid_spike_rate.mean(axis=1))
+                elif mean_type == "trial":
+                    spike_rates[cell_type] = np.mean(gid_spike_rate, axis=1).tolist()
+                elif mean_type == "cell":
                     spike_rates[cell_type] = [
                         gid_trial_rate.tolist() for gid_trial_rate in gid_spike_rate
                     ]
-                else:
-                    warn(
-                        f"No cells of type '{cell_type}' found; firing rate for this "
-                        "cell type will be 0.0"
-                    )
-                    spike_rates[cell_type] = [[0.0] for _ in range(n_trials)]
 
         return spike_rates
 
@@ -397,7 +407,9 @@ class CellResponse(object):
             )
 
         # Validate trial_idx
-        _validate_type(trial_idx, (int, list, None), "trial_idx", "int, list of int")
+        _validate_type(
+            trial_idx, (int, list, str), "trial_idx", "int, list of int, str"
+        )
         n_max_trials = len(self.spike_gids)
         if isinstance(trial_idx, int):
             if trial_idx < 0 or trial_idx >= n_max_trials:
@@ -420,8 +432,14 @@ class CellResponse(object):
                         f"less than the number of trials ({n_max_trials}). Got {trial}"
                     )
             trial_list = trial_idx
-        elif trial_idx is None:
-            trial_list = list(range(n_max_trials))
+        elif isinstance(trial_idx, str):
+            if trial_idx == "all":
+                trial_list = list(range(n_max_trials))
+            elif trial_idx != "all":
+                raise ValueError(
+                    "'trial_idx' must be a non-negative integer, list of integers, or 'all'. "
+                    f"Got '{trial_idx}'."
+                )
 
         # Validate cell_types
         _validate_type(cell_types, (str, list, None), "cell_types", "str, list of str")
@@ -447,7 +465,9 @@ class CellResponse(object):
 
         return times, dt, trial_list, cell_types
 
-    def rate_over_time(self, window_length, cell_types=None, trial_idx=None):
+    def rate_over_time(
+        self, window_length, gid_ranges=None, cell_types=None, trial_idx="all"
+    ):
         """Mean spike rates (Hz) by cell type over time.
 
         Parameters
@@ -455,6 +475,11 @@ class CellResponse(object):
         window_length : int | float
             Length of the sliding window over which firing rates are calculated, in
             ms. Must be greater than the 'dt' of the simulation.
+        gid_ranges : dict of lists or range objects | None
+                Dictionary with keys, e.g. net.gid_ranges
+                containing the range of Cell or input IDs of different
+                cell or input types. If None (default), the number of cells
+                per type is inferred from the recorded spikes.
         cell_types : str | list of str | None, optional
             Cell types for which firing rates are calculated. If None (the default),
             firing rates are calculated for all cell types in the network.
@@ -465,8 +490,8 @@ class CellResponse(object):
         Returns
         -------
         rates : dict
-            Dictionary with keys 'L5_pyramidal', 'L5_basket', etc.
-            Includes firing rates over time for each cell type and trial.
+            Dictionary one key per cell type (e.g. 'L5_pyramidal)
+            containing np.array of size <n_trials, timepoints>
         """
         # Validation and preprocessing of arguments
         times, dt, trial_list, cell_types = self._preprocess_rate_over_time_args(
@@ -484,23 +509,31 @@ class CellResponse(object):
         rates_time = dict()
 
         for cell_type in cell_types:
-            n_cells = len(self._gids_from_spikes(cell_type))
-            if n_cells == 0:
-                warn(
-                    f"No cells of type '{cell_type}' found; firing rate for "
-                    "this cell type will be all zeros."
-                )
+            # if gid_ranges defined by user, n_cells is number of cells
+            # of that type in network
+            if gid_ranges is not None:
+                n_cells = len(gid_ranges[cell_type])
+
             rates_time[cell_type] = np.zeros((len(trial_list), len(times)))
 
-            if cell_type in self.spike_times_by_type and n_cells > 0:
+            if cell_type in self.spike_times_by_type:
                 for row, trial in enumerate(trial_list):
+                    # if gid_ranges not defined by user, calculate number of gids
+                    # per type as number of gids that fired at least once.
+                    if gid_ranges is None:
+                        n_cells = len(
+                            self._gids_from_spikes(cell_type, trial_idx=trial)
+                        )
+                    if n_cells == 0:
+                        n_cells = 1
+
                     spike_type_time = np.histogram(
                         self.spike_times_by_type[cell_type][trial], bins=edges
                     )[0]
                     rates_time[cell_type][row] = (
                         np.convolve(spike_type_time, taper, "same")
-                        / (dt / 1e3)  # conversion of dt from ms to s (to get 1/s = Hz)
                         / n_cells
+                        / (dt / 1e3)  # conversion of dt from ms to s (to get 1/s = Hz)
                     )
 
         return rates_time
@@ -585,7 +618,7 @@ class CellResponse(object):
     def plot_firing_rate_time(
         self,
         window_length,
-        trial_idx=None,
+        trial_idx="all",
         ax=None,
         show=True,
         cell_types=None,
