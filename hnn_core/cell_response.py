@@ -516,7 +516,11 @@ class CellResponse(object):
         marker_size=5.0,
         dpl=None,
         overlay_dipoles=False,
-        **kwargs,
+        xticks=None,
+        yticks=None,
+        xlabel="Time (ms)",
+        ylabel="Neuron index",
+        title=None,
     ):
         """Plot the aggregate spiking activity according to cell type.
 
@@ -544,6 +548,16 @@ class CellResponse(object):
         overlay_dipoles : bool
             If True, overlay the layer-specific dipole data on the
             raster plot
+        xticks : list | np.array | None
+            Ticks on x-axis. If None, ticks are created by matplotlib.
+        yticks : list | np.array | None
+            Ticks on y-axis,  If None, ticks are created by matplotlib.
+        xlabel : str, default: "Time (ms)"
+            The matplotlib x-axis label
+        ylabel : str, default: "Neuron index"
+            The matplotlib y-axis label
+        title : str | None
+            The matplotlib figure title
 
         Returns
         -------
@@ -561,7 +575,11 @@ class CellResponse(object):
             marker_size=marker_size,
             dpl=dpl,
             overlay_dipoles=overlay_dipoles,
-            **kwargs,
+            xticks=xticks,
+            yticks=yticks,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            title=title,
         )
 
     def plot_firing_rate_time(
@@ -847,8 +865,10 @@ def read_spikes(fname, gid_ranges=None):
             spike_types += [list()]
 
     network_cell_names = ["L2_basket", "L2_pyramidal", "L5_basket", "L5_pyramidal"]
+    # Need to cast "np.str_" to str type, since types are loaded above as np.str_, not
+    # regular strings
     cell_type_names = list(
-        cell_name for cell_name in network_cell_names if cell_name in spike_types
+        cell_name for cell_name in network_cell_names if cell_name in str(spike_types)
     )
     cell_response = CellResponse(
         cell_type_names=cell_type_names,

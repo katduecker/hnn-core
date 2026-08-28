@@ -1,4 +1,5 @@
 import os.path as op
+import tempfile
 
 import matplotlib
 from matplotlib import backend_bases
@@ -10,7 +11,7 @@ from numpy.testing import assert_allclose
 import pytest
 
 import hnn_core
-from hnn_core import read_params, neymotin_2020_model
+from hnn_core import read_params, neymotin_2020_model, read_spikes
 from hnn_core.dipole import simulate_dipole
 from hnn_core.network_models import default_cell_metadata
 from hnn_core.viz import (
@@ -649,6 +650,68 @@ class TestCellResponsePlotters:
         )
 
         assert updated_raster_yrange <= initial_raster_yrange
+
+    # smoke test for raster plot input arguments
+    def test_spikes_raster_input_args(self, base_simulation_spikes):
+        net, _ = base_simulation_spikes
+        net.cell_response.plot_spikes_raster(xticks=np.arange(5), yticks=np.arange(5))
+        net.cell_response.plot_spikes_raster(xticks=[1, 2, 3], yticks=[1, 2, 3])
+        net.cell_response.plot_spikes_raster(
+            xlabel="time", ylabel="cells ID", title="spikes raster"
+        )
+
+    def test_spikes_from_read_spikes(self, base_simulation_spikes):
+        """Test hist and raster plots on a CellResponse loaded via read_spikes"""
+        net, dpls = base_simulation_spikes
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            net.cell_response.write(op.join(tmp_dir_name, "spk_%d.txt"))
+            cell_response = read_spikes(op.join(tmp_dir_name, "spk_*.txt"))
+
+        cell_type_names = ["L2_basket", "L2_pyramidal", "L5_basket", "L5_pyramidal"]
+        n_cell_spikes = sum(
+            sum(1 for spike_type in trial if spike_type in cell_type_names)
+            for trial in cell_response.spike_types
+        )
+        n_drive_spikes = sum(
+            sum(1 for spike_type in trial if spike_type not in cell_type_names)
+            for trial in cell_response.spike_types
+        )
+
+        # By default, if any drive (input) spike types are present, the
+        # histogram plots only those, not the real cell spikes
+        fig_hist = cell_response.plot_spikes_hist(show=False)
+        n_plotted_hist = sum(
+            patch.get_height() for ax in fig_hist.axes for patch in ax.patches
+        )
+        assert n_plotted_hist == n_drive_spikes, (
+            f"Expected {n_drive_spikes} spikes plotted in histogram, "
+            f"got {n_plotted_hist}"
+        )
+
+        # By default, the raster plots the real cell spikes, not drive spikes
+        fig_raster = cell_response.plot_spikes_raster(show=False)
+        n_plotted_raster = sum(
+            len(collection.get_positions())
+            for collection in fig_raster.axes[0].collections
+        )
+        assert n_plotted_raster == n_cell_spikes, (
+            f"Expected {n_cell_spikes} spikes plotted in raster, got {n_plotted_raster}"
+        )
+
+        # By default, the raster plots the real cell spikes, not drive spikes
+        fig_raster_overlay = cell_response.plot_spikes_raster(
+            show=False,
+            overlay_dipoles=True,
+            dpl=dpls,
+        )
+        n_plotted_raster_overlay = sum(
+            len(collection.get_positions())
+            for collection in fig_raster_overlay.axes[0].collections
+        )
+        assert n_plotted_raster_overlay == n_cell_spikes, (
+            f"Expected {n_cell_spikes} spikes plotted in raster, got "
+            f"{n_plotted_raster_overlay}"
+        )
 
 
 def test_network_plotter_init(setup_net):
