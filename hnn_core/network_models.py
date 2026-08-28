@@ -75,6 +75,92 @@ default_drive_colors = {
 }
 
 
+def _validate_params_for_model(
+    net,
+    params,
+    model_variant,
+    alt_variants=[],
+    require_variant=False,
+    excluded_cells=[],
+):
+    """Check that a param file matches the network model it is used for.
+
+    Parameters
+    ----------
+    net : Instance of Network object
+        The network the parameters are used for.
+    params : dict
+        The parameters the network was built from.
+    model_variant : str
+        Name of the network model, e.g. 'duecker_ET_model'. The
+        'model_variant' entry of `params` must be this name (or of one of
+        `alt_variants`).
+    alt_variants : list of str, default=[]
+        Further model names that are accepted in the 'model_variant' entry of `params`,
+        e.g. the deprecated name of a model. If `params` defines a local 'model_variant'
+        that is in 'alt_variants', the returned value will be the value of
+        'model_variant' that is passed to this function instead.
+    require_variant : bool, default=False
+        If True, raise if `params` does not define 'model_variant'. Used for
+        models that share no parameters with the default model, and would
+        otherwise silently fall back to default values.
+    excluded_cells : list of str, default=[]
+        Short names of cells that are *not* part of this network, e.g.
+        ('L2Basket', 'L5Basket') for a model in which basket cells are
+        replaced. Parameters for these cells are rejected.
+
+    Returns
+    -------
+    model_variant : str
+        The official model variant name.
+    """
+    check_var = params.get("model_variant", None)
+    if check_var is None:
+        if require_variant:
+            raise ValueError(
+                f"'model_variant' is required for simulations with "
+                f"{model_variant}. If you are sure that you are using the "
+                f"correct parameters, add 'model_variant': '{model_variant}', "
+                "to the first line of the param .json file."
+            )
+    elif check_var not in [model_variant] + alt_variants:
+        raise ValueError(
+            f"Parameters for {check_var} used for {model_variant}."
+            " Ensure that your param .json file matches the network "
+            f"and that your model variant is one of {[model_variant] + alt_variants}. "
+        )
+
+    # check that the params define the cell types of this network
+    missing_cells = [
+        cell_name
+        for cell_name in net.cell_types
+        if not any(_short_name(cell_name) in key for key in params)
+    ]
+    if missing_cells:
+        raise ValueError(
+            f"No parameters found for {', '.join(missing_cells)}."
+            " Ensure that your param .json file matches the network. "
+            " Reach out to us if this doesn't solve your problem.  "
+            " https://github.com/jonescompneurolab/hnn-core/discussions"
+        )
+
+    # check that the params don't define cell types this network replaced
+    unexpected_cells = [
+        cell_name
+        for cell_name in excluded_cells
+        if any(cell_name in key for key in params)
+    ]
+    if unexpected_cells:
+        raise ValueError(
+            f"Parameters found for {', '.join(unexpected_cells)}, which"
+            f" are not part of {model_variant}. Ensure that your"
+            " param .json file matches the network."
+            " Reach out to us if this doesn't solve your problem.  "
+            " https://github.com/jonescompneurolab/hnn-core/discussions"
+        )
+    return model_variant
+
+
 def neymotin_2020_model(
     params=None,
     add_drives_from_params=False,
@@ -131,9 +217,8 @@ def neymotin_2020_model(
     """
     hnn_core_root = Path(hnn_core.__file__).parent
     if params is None:
-        params = hnn_core_root / "param" / "default.json"
-    if isinstance(params, (str, Path)):
-        params = read_params(params)
+        params_fname = hnn_core_root / "param" / "default.json"
+        params = read_params(params_fname)
 
     # Define cell types for Jones 2009 model
     # data is here in metaData format
@@ -184,6 +269,9 @@ def neymotin_2020_model(
     )
 
     delay = net.delay
+
+    # Ensure model_variant and params' cell types match current model
+    net._model_variant = _validate_params_for_model(net, params, "neymotin_2020_model")
 
     # source of synapse is always at soma
 
@@ -412,12 +500,20 @@ def law_2021_model(
            Perception." Cerebral Cortex, 32, 668–688 (2022).
     """
 
-    net = jones_2009_model(
+    hnn_core_root = Path(hnn_core.__file__).parent
+    if params is None:
+        params_fname = hnn_core_root / "param" / "default.json"
+        params = read_params(params_fname)
+
+    net = neymotin_2020_model(
         params,
         add_drives_from_params,
         legacy_mode,
         mesh_shape=mesh_shape,
     )
+    # Ensure model_variant and params' cell types match current model (same cell types
+    # as 'neymotin_2020_model')
+    net._model_variant = _validate_params_for_model(net, params, "law_2021_model")
 
     # Update biophysics (increase gabab duration of inhibition)
     net.cell_types["L2_pyramidal"]["cell_object"].synapses["gabab"]["tau1"] = 45.0
@@ -500,8 +596,8 @@ def calcium_model(
            Brain Topography, 35, 19–35 (2022).
     """
     hnn_core_root = Path(hnn_core.__file__).parent
-    params_fname = hnn_core_root / "param" / "default.json"
     if params is None:
+        params_fname = hnn_core_root / "param" / "default.json"
         params = read_params(params_fname)
 
     net = jones_2009_model(
@@ -510,6 +606,10 @@ def calcium_model(
         legacy_mode,
         mesh_shape=mesh_shape,
     )
+
+    # Ensure model_variant and params' cell types match current model (same cell types
+    # as 'neymotin_2020_model')
+    net._model_variant = _validate_params_for_model(net, params, "calcium_model")
 
     # Replace L5 pyramidal cell template with updated calcium
     cell_name = "L5_pyramidal"
@@ -527,13 +627,15 @@ def duecker_ET_model(
     """ "Initiate like old calcium model and then replace with new cells"""
 
     hnn_core_root = Path(hnn_core.__file__).parent
-    params_fname = hnn_core_root / "param" / "default_duecker_ET.json"
     if params is None:
+        params_fname = hnn_core_root / "param" / "default_duecker_ET.json"
         params = read_params(params_fname)
 
     cell_types = {
         "L2_inhibitory": {
-            "cell_object": human_gen_interneuron(cell_name="L2Inh", layer=2),
+            "cell_object": human_gen_interneuron(
+                cell_name=_short_name("L2_inhibitory"), layer=2
+            ),
             "cell_metadata": {
                 "morpho_type": "interneuron",
                 "electro_type": "inhibitory",
@@ -546,7 +648,7 @@ def duecker_ET_model(
             },
         },
         "L2_pyramidal": {
-            "cell_object": pyramidal_humanL23(cell_name="L2Pyr"),
+            "cell_object": pyramidal_humanL23(cell_name=_short_name("L2_pyramidal")),
             "cell_metadata": {
                 "morpho_type": "pyramidal",
                 "electro_type": "excitatory",
@@ -559,7 +661,9 @@ def duecker_ET_model(
             },
         },
         "L5_inhibitory": {
-            "cell_object": human_gen_interneuron(cell_name="L5Inh", layer=5),
+            "cell_object": human_gen_interneuron(
+                cell_name=_short_name("L5_inhibitory"), layer=5
+            ),
             "cell_metadata": {
                 "morpho_type": "interneuron",
                 "electro_type": "inhibitory",
@@ -572,7 +676,7 @@ def duecker_ET_model(
             },
         },
         "L5_pyramidal": {
-            "cell_object": pyramidal_humanL5ET(cell_name="L5Pyr"),
+            "cell_object": pyramidal_humanL5ET(cell_name=_short_name("L5_pyramidal")),
             "cell_metadata": {
                 "morpho_type": "pyramidal",
                 "electro_type": "excitatory",
@@ -611,6 +715,16 @@ def duecker_ET_model(
         mesh_shape=mesh_shape,
         pos_dict=pos_dict,
         cell_types=cell_types,
+    )
+
+    # check variant and cell types. Basket cells are replaced by
+    # interneurons in duecker_ET_model, so their parameters are rejected
+    net._model_variant = _validate_params_for_model(
+        net,
+        params,
+        "duecker_ET_model",
+        require_variant=True,
+        excluded_cells=("L2Basket", "L5Basket"),
     )
 
     delay = net.delay
