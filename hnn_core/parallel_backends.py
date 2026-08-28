@@ -15,6 +15,8 @@ from subprocess import Popen, PIPE, TimeoutExpired
 from queue import Queue, Empty
 from threading import Thread, Event
 from pathlib import Path
+import warnings
+
 from typing import Union
 
 from .cell_response import CellResponse
@@ -80,10 +82,17 @@ def _gather_trial_data(sim_data, net, n_trials, postproc, bsl_cor="jones"):
 
         N_pyr_x = net._N_pyr_x
         N_pyr_y = net._N_pyr_y
-        if bsl_cor == "jones" or bsl_cor == "neymotin":
+        if bsl_cor == "neymotin" or bsl_cor == "jones":
             if net._verbose:
-                print("Applying Neymotin, 2020 baseline correction", flush=True)
+                print("Applying Neymotin baseline correction", flush=True)
             dpl._baseline_renormalize(N_pyr_x, N_pyr_y)  # XXX cf. #270
+
+            if bsl_cor == "jones":
+                warnings.warn(
+                            "bsl_cor='jones' deprecated as the model has been renamed to neymotin_2020_model."
+                            "Please use bsl_cor='neymotin'.",
+                            DeprecationWarning,
+                        )
 
         dpl._convert_fAm_to_nAm()  # always applied, cf. #264
 
