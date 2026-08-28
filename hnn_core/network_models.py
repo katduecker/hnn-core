@@ -85,8 +85,6 @@ def _validate_params_for_model(
 ):
     """Check that a param file matches the network model it is used for.
 
-    Sets ``net._model_variant`` if all checks pass.
-
     Parameters
     ----------
     net : Instance of Network object
@@ -95,25 +93,26 @@ def _validate_params_for_model(
         The parameters the network was built from.
     model_variant : str
         Name of the network model, e.g. 'duecker_ET_model'. The
-        'model_variant' entry of `params` must be an abbreviation of this
-        name (or of one of `alt_variants`).
-    alt_variants : list of str
-        Further model names that are accepted in the 'model_variant' entry of
-        `params`, e.g. the deprecated name of a model. Default: ()
-    require_variant : bool
+        'model_variant' entry of `params` must be this name (or of one of
+        `alt_variants`).
+    alt_variants : list of str, default=[]
+        Further model names that are accepted in the 'model_variant' entry of `params`,
+        e.g. the deprecated name of a model. If `params` defines a local 'model_variant'
+        that is in 'alt_variants', the returned value will be the value of
+        'model_variant' that is passed to this function instead.
+    require_variant : bool, default=False
         If True, raise if `params` does not define 'model_variant'. Used for
         models that share no parameters with the default model, and would
-        otherwise silently fall back to default values. Default: False
-    excluded_cells : list of str
+        otherwise silently fall back to default values.
+    excluded_cells : list of str, default=[]
         Short names of cells that are *not* part of this network, e.g.
         ('L2Basket', 'L5Basket') for a model in which basket cells are
-        replaced. Parameters for these cells are rejected. Default: ()
+        replaced. Parameters for these cells are rejected.
 
     Returns
     -------
     model_variant : str
         The official model variant name.
-
     """
     check_var = params.get("model_variant", None)
     if check_var is None:
@@ -272,7 +271,7 @@ def neymotin_2020_model(
 
     delay = net.delay
 
-    # ensure model variant and cell types match current model
+    # Ensure model_variant and params' cell types match current model
     net._model_variant = _validate_params_for_model(net, params, "neymotin_2020_model")
 
     # source of synapse is always at soma
@@ -514,7 +513,8 @@ def law_2021_model(
         legacy_mode,
         mesh_shape=mesh_shape,
     )
-    # check variant
+    # Ensure model_variant and params' cell types match current model (same cell types
+    # as 'neymotin_2020_model')
     net._model_variant = _validate_params_for_model(net, params, "law_2021_model")
 
     # Update biophysics (increase gabab duration of inhibition)
@@ -571,7 +571,7 @@ def calcium_model(
 ):
     """Instantiate the Jones 2009 model with improved calcium dynamics in
     L5 pyramidal neurons. For more details on changes to calcium dynamics
-    see Kohl et al. Brain Topragr 2022 [1]
+    see Kohl et al. Brain Topragr 2022 [1]_
 
     Returns
     -------
@@ -609,7 +609,8 @@ def calcium_model(
         mesh_shape=mesh_shape,
     )
 
-    # check variant
+    # Ensure model_variant and params' cell types match current model (same cell types
+    # as 'neymotin_2020_model')
     net._model_variant = _validate_params_for_model(net, params, "calcium_model")
 
     # Replace L5 pyramidal cell template with updated calcium
