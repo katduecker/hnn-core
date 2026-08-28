@@ -575,7 +575,7 @@ def calcium_model(
 ):
     """Instantiate the Jones 2009 model with improved calcium dynamics in
     L5 pyramidal neurons. For more details on changes to calcium dynamics
-    see Kohl et al. Brain Topragr 2022 [1]_
+    see Kohl et al. Brain Topragr 2022 [1]
 
     Returns
     -------
