@@ -217,9 +217,8 @@ def neymotin_2020_model(
     """
     hnn_core_root = Path(hnn_core.__file__).parent
     if params is None:
-        params = hnn_core_root / "param" / "default.json"
-    if isinstance(params, (str, Path)):
-        params = read_params(params)
+        params_fname = hnn_core_root / "param" / "default.json"
+        params = read_params(params_fname)
 
     # Define cell types for Jones 2009 model
     # data is here in metaData format
@@ -503,9 +502,8 @@ def law_2021_model(
 
     hnn_core_root = Path(hnn_core.__file__).parent
     if params is None:
-        params = hnn_core_root / "param" / "default.json"
-    if isinstance(params, str):
-        params = read_params(params)
+        params_fname = hnn_core_root / "param" / "default.json"
+        params = read_params(params_fname)
 
     net = neymotin_2020_model(
         params,
@@ -598,8 +596,8 @@ def calcium_model(
            Brain Topography, 35, 19–35 (2022).
     """
     hnn_core_root = Path(hnn_core.__file__).parent
-    params_fname = hnn_core_root / "param" / "default.json"
     if params is None:
+        params_fname = hnn_core_root / "param" / "default.json"
         params = read_params(params_fname)
 
     net = jones_2009_model(
@@ -629,8 +627,8 @@ def duecker_ET_model(
     """ "Initiate like old calcium model and then replace with new cells"""
 
     hnn_core_root = Path(hnn_core.__file__).parent
-    params_fname = hnn_core_root / "param" / "default_duecker_ET.json"
     if params is None:
+        params_fname = hnn_core_root / "param" / "default_duecker_ET.json"
         params = read_params(params_fname)
 
     cell_types = {
