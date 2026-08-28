@@ -3,8 +3,6 @@
 # Authors: Mainak Jas <mjas@mgh.harvard.edu>
 #          Sam Neymotin <samnemo@gmail.com>
 
-import os
-import os.path as op
 from pathlib import Path
 import warnings
 from copy import deepcopy
@@ -887,12 +885,9 @@ class Dipole(object):
     def _baseline_renormalize_dueckerET(self):
         """Baseline correction based on calcium model without drives"""
 
-        hnn_core_root = op.dirname(hnn_core.__file__)
-
+        hnn_core_root = Path(hnn_core.__file__).parent
         # load the baseline dipole
-        with open(
-            op.join(hnn_core_root, "param", "bsl_corr_duecker_ET.json"), "r"
-        ) as f:
+        with open(hnn_core_root / "param" / "bsl_corr_duecker_ET.json", "r") as f:
             bsl_dpl = json.load(f)
 
         A_L2 = bsl_dpl["L2"][-1]

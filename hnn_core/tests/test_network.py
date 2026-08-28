@@ -1589,7 +1589,7 @@ def test_tonic_biases_non_gid():
 
 def test_tonic_biases_legacy_params_api():
     """Test that the legacy 'params' API for tonic biases is still functional."""
-    hnn_core_root = op.dirname(hnn_core.__file__)
+    hnn_core_root = Path(hnn_core.__file__).parent
 
     # default params
     params_fname = hnn_core_root / "param" / "default.json"
