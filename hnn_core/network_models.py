@@ -615,7 +615,6 @@ def calcium_model(
 
     # check variant
     _validate_params_for_model(net, params, "calcium_model")
-    net._sim_prefix = params.get("sim_prefix", "default")
 
     # Replace L5 pyramidal cell template with updated calcium
     cell_name = "L5_pyramidal"

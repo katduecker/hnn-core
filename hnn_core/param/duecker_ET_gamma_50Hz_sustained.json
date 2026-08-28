@@ -1,5 +1,4 @@
 {   "model_variant": "duecker_ET_model",
-    "sim_prefix": "duecker_ET_gamma_bursty",
     "tstop": 170,
     "dt": 0.025,
     "celsius": 37.0,

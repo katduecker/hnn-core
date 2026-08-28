@@ -451,7 +451,6 @@ class Network:
         _validate_type(params, dict, "params")
         self._params = params
         self._model_variant = params.get("model_variant", None)
-        self._sim_prefix = params.get("sim_prefix", None)
         # Initialise a dictionary of cell ID's, which get used when the
         # network is constructed ('built') in NetworkBuilder
         # We want it to remain in each Network object, so that the user can
