@@ -79,9 +79,9 @@ def _validate_params_for_model(
     net,
     params,
     model_variant,
-    alt_variants=(),
+    alt_variants=[],
     require_variant=False,
-    excluded_cells=(),
+    excluded_cells=[],
 ):
     """Check that a param file matches the network model it is used for.
 
@@ -97,24 +97,23 @@ def _validate_params_for_model(
         Name of the network model, e.g. 'duecker_ET_model'. The
         'model_variant' entry of `params` must be an abbreviation of this
         name (or of one of `alt_variants`).
-    alt_variants : tuple of str
+    alt_variants : list of str
         Further model names that are accepted in the 'model_variant' entry of
         `params`, e.g. the deprecated name of a model. Default: ()
     require_variant : bool
         If True, raise if `params` does not define 'model_variant'. Used for
         models that share no parameters with the default model, and would
         otherwise silently fall back to default values. Default: False
-    excluded_cells : tuple of str
+    excluded_cells : list of str
         Short names of cells that are *not* part of this network, e.g.
         ('L2Basket', 'L5Basket') for a model in which basket cells are
         replaced. Parameters for these cells are rejected. Default: ()
 
-    Raises
-    ------
-    ValueError
-        If the model variant does not match, if parameters are missing for a
-        cell type of the network, or if parameters are found for a cell type
-        that is not part of the network.
+    Returns
+    -------
+    model_variant : str
+        The official model variant name.
+
     """
     check_var = params.get("model_variant", None)
     if check_var is None:
@@ -125,26 +124,25 @@ def _validate_params_for_model(
                 f"correct parameters, add 'model_variant': '{model_variant}', "
                 "to the first line of the param .json file."
             )
-    elif not any(
-        valid_variant.startswith(check_var)
-        for valid_variant in (model_variant,) + tuple(alt_variants)
-    ):
+    elif check_var not in [model_variant] + alt_variants:
         raise ValueError(
             f"Parameters for {check_var} used for {model_variant}."
-            " Ensure that your param .json file matches the network."
+            " Ensure that your param .json file matches the network "
+            f"and that your model variant is one of {[model_variant] + alt_variants}. "
         )
-    net._model_variant = model_variant
 
     # check that the params define the cell types of this network
     missing_cells = [
-        _short_name(cell_name)
+        cell_name
         for cell_name in net.cell_types
         if not any(_short_name(cell_name) in key for key in params)
     ]
     if missing_cells:
         raise ValueError(
             f"No parameters found for {', '.join(missing_cells)}."
-            " Ensure that your param .json file matches the network."
+            " Ensure that your param .json file matches the network. "
+            " Reach out to us if this doesn't solve your problem.  "
+            " https://github.com/jonescompneurolab/hnn-core/discussions"
         )
 
     # check that the params don't define cell types this network replaced
@@ -158,7 +156,10 @@ def _validate_params_for_model(
             f"Parameters found for {', '.join(unexpected_cells)}, which"
             f" are not part of {model_variant}. Ensure that your"
             " param .json file matches the network."
+            " Reach out to us if this doesn't solve your problem.  "
+            " https://github.com/jonescompneurolab/hnn-core/discussions"
         )
+    return model_variant
 
 
 def neymotin_2020_model(
@@ -272,12 +273,7 @@ def neymotin_2020_model(
     delay = net.delay
 
     # ensure model variant and cell types match current model
-    _validate_params_for_model(
-        net,
-        params,
-        "neymotin_2020_model",
-        alt_variants=("jones_2009_model",),
-    )
+    net._model_variant = _validate_params_for_model(net, params, "neymotin_2020_model")
 
     # source of synapse is always at soma
 
@@ -519,7 +515,7 @@ def law_2021_model(
         mesh_shape=mesh_shape,
     )
     # check variant
-    _validate_params_for_model(net, params, "law_2021_model")
+    net._model_variant = _validate_params_for_model(net, params, "law_2021_model")
 
     # Update biophysics (increase gabab duration of inhibition)
     net.cell_types["L2_pyramidal"]["cell_object"].synapses["gabab"]["tau1"] = 45.0
@@ -614,7 +610,7 @@ def calcium_model(
     )
 
     # check variant
-    _validate_params_for_model(net, params, "calcium_model")
+    net._model_variant = _validate_params_for_model(net, params, "calcium_model")
 
     # Replace L5 pyramidal cell template with updated calcium
     cell_name = "L5_pyramidal"
@@ -724,7 +720,7 @@ def duecker_ET_model(
 
     # check variant and cell types. Basket cells are replaced by
     # interneurons in duecker_ET_model, so their parameters are rejected
-    _validate_params_for_model(
+    net._model_variant = _validate_params_for_model(
         net,
         params,
         "duecker_ET_model",

@@ -371,7 +371,8 @@ def test_read_model_variant_cell_types(tmp_path):
             json.dump(net_data, file)
         read_network_configuration(modified_path)
 
-    # interneurons replaced by the basket cells of neymotin_2020_model
+    # Raise error if there is a discrepancy between expected cell types and actual cell types in model
+    # e.g. here: neymotin_2020_model with human inhibitory interneurons instead of basket cells.
     neymotin_data = deepcopy(net_data)
     neymotin_data["cell_types"]["L2_basket"] = neymotin_data["cell_types"].pop(
         "L2_inhibitory"

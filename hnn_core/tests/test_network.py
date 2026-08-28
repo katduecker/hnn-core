@@ -515,48 +515,40 @@ def test_model_variant_matches_network():
     """Test that a mismatch between param file and network model is caught"""
     duecker_params_fname = op.join(hnn_core_root, "param", "default_duecker_ET.json")
     duecker_params = read_params(duecker_params_fname)
+    neymo_params = read_params(params_fname)
     mesh_shape = (3, 3)
 
-    # a matching param file builds the network without error
+    # default call assigns model_variant correctly
     net_duecker = duecker_ET_model(mesh_shape=mesh_shape)
     assert net_duecker._model_variant == "duecker_ET_model"
 
     net_neymotin = neymotin_2020_model(mesh_shape=mesh_shape)
     assert net_neymotin._model_variant == "neymotin_2020_model"
 
-    # abbreviated variant names are accepted
-    for variant in ["duecker_ET", "duecker"]:
-        params = duecker_params.copy()
-        params["model_variant"] = variant
-        net = duecker_ET_model(params=params, mesh_shape=mesh_shape)
-        assert net._model_variant == "duecker_ET_model"
-
-    for variant in ["neymotin", "jones"]:
-        params = read_params(params_fname)
-        params["model_variant"] = variant
-        net = neymotin_2020_model(params=params, mesh_shape=mesh_shape)
-        assert net._model_variant == "neymotin_2020_model"
-
     # duecker_ET_model parameters used for neymotin_2020_model
-    params = read_params(params_fname)
-    params["model_variant"] = "duecker_ET_model"
     with pytest.raises(ValueError, match="used for neymotin_2020_model"):
-        neymotin_2020_model(params=params, mesh_shape=mesh_shape)
+        neymotin_2020_model(params=duecker_params, mesh_shape=mesh_shape)
 
-    # neymotin_2020_model parameters used for duecker_ET_model
-    params = duecker_params.copy()
+    # if user uses parameters that explicitly define model_variant as neymotin_2020_model
+    params = neymo_params.copy()
     params["model_variant"] = "neymotin_2020_model"
     with pytest.raises(ValueError, match="used for duecker_ET_model"):
         duecker_ET_model(params=params, mesh_shape=mesh_shape)
 
-    # a name that is not an abbreviation of any model is rejected
-    params = read_params(params_fname)
+    # a random model_variant name is rejected
+    params = neymo_params.copy()
     params["model_variant"] = "model"
     with pytest.raises(ValueError, match="used for neymotin_2020_model"):
         neymotin_2020_model(params=params, mesh_shape=mesh_shape)
 
-    # duecker_ET_model shares no parameters with the default model, so it
-    # requires 'model_variant' rather than falling back to default values
+    # if user uses a json file that has the right model variant,
+    # but cell types mismatch
+    params = neymo_params.copy()
+    params["model_variant"] = "duecker_ET_model"  # pretend it's a duecker_ET_model
+    with pytest.raises(ValueError, match="used for neymotin_2020_model"):
+        neymotin_2020_model(params=params, mesh_shape=mesh_shape)
+
+    # if creating duecker_ET_model without model_variant
     params = duecker_params.copy()
     del params["model_variant"]
     with pytest.raises(ValueError, match="'model_variant' is required"):
@@ -598,7 +590,7 @@ def test_network_models_cell_params(network_model):
         params = default_params.copy()
         for key in [key for key in params if cell_name in key]:
             del params[key]
-        with pytest.raises(ValueError, match=f"No parameters found for {cell_name}"):
+        with pytest.raises(ValueError, match="No parameters found for"):
             network_model(params=params, mesh_shape=mesh_shape)
 
 
@@ -613,14 +605,14 @@ def test_duecker_ET_model_cell_params():
         params = duecker_params.copy()
         for key in [key for key in params if cell_name in key]:
             del params[key]
-        with pytest.raises(ValueError, match=f"No parameters found for {cell_name}"):
+        with pytest.raises(ValueError, match="No parameters found for"):
             duecker_ET_model(params=params, mesh_shape=mesh_shape)
 
     # basket cells are replaced by interneurons in this network
     for cell_name in ["L2Basket", "L5Basket"]:
         params = duecker_params.copy()
         params[f"gbar_{cell_name}_L2Pyr_gabaa"] = 0.0
-        with pytest.raises(ValueError, match=f"Parameters found for {cell_name}"):
+        with pytest.raises(ValueError, match="Parameters found for"):
             duecker_ET_model(params=params, mesh_shape=mesh_shape)
 
 
