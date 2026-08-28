@@ -108,8 +108,9 @@ def simulate_dipole(
         for cell_type, bias_cell_type in bias.items():
             if bias_cell_type["tstop"] is None:
                 bias_cell_type["tstop"] = tstop
-            if bias_cell_type["tstop"] < 0.0:
-                raise ValueError("End time of tonic input cannot be negative")
+            # This check is also performed at Network.add_tonic_bias time, but if the
+            # user does not specify tstop at that time, then tstop is not known until
+            # simulation time, so we need to check it again here.
             duration = bias_cell_type["tstop"] - bias_cell_type["t0"]
             if duration < 0.0:
                 raise ValueError("Duration of tonic input cannot be negative")
@@ -365,10 +366,6 @@ def _rmse(dpl, exp_dpl, tstart=0.0, tstop=0.0, weights=None):
 
 def exp_decay(t, A, C, b):
     return ((C - A) * np.exp(-b * (t))) + A
-
-
-# # end of KDTODO
-
 
 def _anticorr(dpl, exp_dpl, tstart=0.0, tstop=0.0, weights=None):
     """Calculates Anticorrelation (1 - corr) between data in dpl and exp_dpl
@@ -840,6 +837,9 @@ class Dipole(object):
 
         popt_l2 = np.array(bsl_dpl["popt_l2"])
         popt_l5 = np.array(bsl_dpl["popt_l5"])
+
+        def exp_decay(t, A, C, b):
+            return ((C - A) * np.exp(-b * (t))) + A
 
         exp_fit_l2 = exp_decay(np.array(self.times[1:]), A_L2, C_L2, *popt_l2)
         exp_fit_l5 = exp_decay(np.array(self.times[1:]), A_L5, C_L5, *popt_l5)
