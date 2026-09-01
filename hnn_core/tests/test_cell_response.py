@@ -376,7 +376,7 @@ def test_rate_over_time_trial_idx():
 
     # trial_idx=None: all trials computed at once
     rates_all = cell_response.rate_over_time(
-        window_length=window_length, cell_types=["L5_basket"], trial_idx="all"
+        window_length=window_length, cell_types=["L5_basket"], trial_idx=None
     )
     assert rates_all["L5_basket"].shape == (3, len(sim_times))
     # sanity check that the 3 trials are not identical (i.e. the spikes at
@@ -413,9 +413,9 @@ def test_rate_over_time_trial_idx():
     assert np.allclose(rate_multi["L5_basket"][0], rates_all["L5_basket"][2])
     assert np.allclose(rate_multi["L5_basket"][1], rates_all["L5_basket"][0])
 
-    # trial_idx="all" must return an array of shape <n_trials, len(sim_times)>
+    # trial_idx=None (default) must return an array of shape <n_trials, len(sim_times)>
     rate_all = cell_response.rate_over_time(
-        window_length=window_length, cell_types=["L5_basket"], trial_idx="all"
+        window_length=window_length, cell_types=["L5_basket"]
     )
     n_trials = len(cell_response._spike_times)
     assert rate_all["L5_basket"].shape == (n_trials, len(sim_times))
@@ -501,8 +501,8 @@ def test_rate_over_time_validation():
     with pytest.raises(ValueError, match="not be greater than the total duration"):
         cell_response.rate_over_time(window_length=total_duration + 1.0)
 
-    # trial_idx must be int, list, or "all"
-    with pytest.raises(ValueError, match="Got 'goof'"):
+    # trial_idx must be int, list, or None
+    with pytest.raises(TypeError, match="trial_idx must be an instance of"):
         cell_response.rate_over_time(window_length=2.0, trial_idx="goof")
 
     # trial_idx as an out-of-range int
