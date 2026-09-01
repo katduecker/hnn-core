@@ -297,7 +297,7 @@ class CellResponse(object):
             Value defining the stop time of all trials.
         gid_ranges : dict of lists or range objects | None
             Dictionary with keys, e.g. net.gid_ranges
-            containing the range of Cell or input IDs of different
+            containing the range of Cell or input GIDs of different
             cell or input types. If None (default), the number of cells
             per type is inferred from the recorded spikes.
         mean_type : str
