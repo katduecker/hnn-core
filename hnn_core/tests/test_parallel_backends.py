@@ -455,10 +455,8 @@ def test_mpi_failure(run_hnn_core_fixture):
 
 @pytest.mark.uses_mpi
 @pytest.mark.duecker
-# TODO currently only tests against MPI, but expanded Duecker model testing will happen
-# in a new fresh PR.
-# @pytest.mark.parametrize("backend", ["mpi", "joblib"])
-def test_compare_duecker_model_output():
+@pytest.mark.parametrize("backend", ["mpi", "joblib"])
+def test_compare_duecker_model_output(backend):
     """Test that the Duecker model dipole output does not change"""
 
     from script_duecker_simulate_save import rerun_and_save_duecker_model
@@ -467,7 +465,7 @@ def test_compare_duecker_model_output():
     # ----------------------------------------------------------------------------------
     # This creates two new files, `dipole_duecker_output_new.txt` and
     # `spikes_duecker_output_new.txt` in the local directory..
-    rerun_and_save_duecker_model(suffix="new")
+    rerun_and_save_duecker_model(suffix="new", backend=backend)
 
     dpl_new_reloaded = loadtxt("dipole_duecker_output_new.txt")
     cell_response_new_reloaded = read_spikes("spikes_duecker_output_new.txt")
