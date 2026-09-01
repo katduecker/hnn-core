@@ -244,7 +244,7 @@ class CellResponse(object):
             spike_types += [list(spike_types_trial)]
         self._spike_types = spike_types
 
-    def _gids_from_spikes(self, cell_type, trial_idx="all"):
+    def _gids_from_spikes(self, cell_type, trial_idx=None):
         """Count how many gids per cell type spiked over all trials.
         This function allows mean_rates to be used with gid_ranges=None.
 
@@ -252,8 +252,8 @@ class CellResponse(object):
         ----------
         cell_type : str
             Cell type name, e.g. 'L5_pyramidal'.
-        trial_idx : str | int | list of int
-            Trial index, if 'all' return gids over all trials,
+        trial_idx : None | int | list of int, default=None
+            Trial index, if None (default) return gids over all trials,
             if int, return gids that spiked in individual trial,
             if list, return gids that spiked over trials in list.
 
@@ -264,7 +264,7 @@ class CellResponse(object):
         """
         gids, types = [], []
 
-        if trial_idx == "all":
+        if trial_idx is None:
             for trial_gids, trial_types in zip(self._spike_gids, self._spike_types):
                 gids.extend(trial_gids)
                 types.extend(trial_types)
@@ -296,10 +296,9 @@ class CellResponse(object):
         tstop : int | float | None
             Value defining the stop time of all trials.
         gid_ranges : dict of lists or range objects | None
-            Dictionary with keys, e.g. net.gid_ranges
-            containing the range of Cell or input GIDs of different
-            cell or input types. If None (default), the number of cells
-            per type is inferred from the recorded spikes.
+            Dictionary with keys, e.g. net.gid_ranges containing the range of Cell or
+            input GIDs of different cell or input types. If None (default), the number
+            of cells per type is inferred from the recorded spikes.
         mean_type : str
             'all' : Average over trials and cells
                 Returns mean firing rate over time, trials, and gids, per cell type.
@@ -408,10 +407,12 @@ class CellResponse(object):
 
         # Validate trial_idx
         _validate_type(
-            trial_idx, (int, list, str), "trial_idx", "int, list of int, str"
+            trial_idx, (int, list, None), "trial_idx", "int, list of int, or None"
         )
         n_max_trials = len(self.spike_gids)
-        if isinstance(trial_idx, int):
+        if trial_idx is None:
+            trial_list = list(range(n_max_trials))
+        elif isinstance(trial_idx, int):
             if trial_idx < 0 or trial_idx >= n_max_trials:
                 raise ValueError(
                     f"'trial_idx' must be a non-negative integer less "
@@ -432,17 +433,11 @@ class CellResponse(object):
                         f"less than the number of trials ({n_max_trials}). Got {trial}"
                     )
             trial_list = trial_idx
-        elif isinstance(trial_idx, str):
-            if trial_idx == "all":
-                trial_list = list(range(n_max_trials))
-            elif trial_idx != "all":
-                raise ValueError(
-                    "'trial_idx' must be a non-negative integer, list of integers, or 'all'. "
-                    f"Got '{trial_idx}'."
-                )
 
         # Validate cell_types
-        _validate_type(cell_types, (str, list, None), "cell_types", "str, list of str")
+        _validate_type(
+            cell_types, (str, list, None), "cell_types", "str, list of str, or None"
+        )
         if cell_types is None:
             cell_types = self._cell_type_names
         elif isinstance(cell_types, str):
@@ -466,7 +461,7 @@ class CellResponse(object):
         return times, dt, trial_list, cell_types
 
     def rate_over_time(
-        self, window_length, gid_ranges=None, cell_types=None, trial_idx="all"
+        self, window_length, gid_ranges=None, cell_types=None, trial_idx=None
     ):
         """Mean spike rates (Hz) by cell type over time.
 
@@ -475,15 +470,14 @@ class CellResponse(object):
         window_length : int | float
             Length of the sliding window over which firing rates are calculated, in
             ms. Must be greater than the 'dt' of the simulation.
-        gid_ranges : dict of lists or range objects | None
-                Dictionary with keys, e.g. net.gid_ranges
-                containing the range of Cell or input IDs of different
-                cell or input types. If None (default), the number of cells
-                per type is inferred from the recorded spikes.
-        cell_types : str | list of str | None, optional
+        gid_ranges : None | dict of lists or range objects, default=None
+            Dictionary with keys, e.g. net.gid_ranges containing the range of Cell or
+            input IDs of different cell or input types. If None (default), the number of
+            cells per type is inferred from the recorded spikes.
+        cell_types : None| str | list of str, default=None
             Cell types for which firing rates are calculated. If None (the default),
             firing rates are calculated for all cell types in the network.
-        trial_idx : int | list of int | None, optional
+        trial_idx : None | int | list of int, default=None
             Trial index (or list of indices) for which firing rate is calculated. If
             None (the default), firing rates are calculated for all trials.
 
@@ -618,7 +612,7 @@ class CellResponse(object):
     def plot_firing_rate_time(
         self,
         window_length,
-        trial_idx="all",
+        trial_idx=None,
         ax=None,
         show=True,
         cell_types=None,
@@ -640,8 +634,9 @@ class CellResponse(object):
         window_length : int | float
             Length of the sliding window over which mean rates are calculated, in ms.
         trial_idx : int | list of int | None
-            Trial index (or list of indices) to be plotted. If None, mean rate over
-            all trials is plotted, and standard deviation is indicated by shading.
+            Trial index (or list of indices) to be plotted. If None (the default), mean
+            rate over all trials is plotted, and standard deviation is indicated by
+            shading.
         ax : instance of matplotlib axis | None
             An axis object from matplotlib. If None, a new figure is created.
         show : bool

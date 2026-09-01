@@ -969,8 +969,8 @@ def plot_firing_rate_time(
     window_length : int | float
         Length of the sliding window over which mean rates are calculated, in ms.
     trial_idx : int | list of int | None
-        Trial index (or list of indices) to be plotted. If None, mean rate over
-        all trials is plotted, and standard deviation is indicated by shading.
+        Trial index (or list of indices) to be plotted. If None (the default), mean rate
+        over all trials is plotted, and standard deviation is indicated by shading.
     ax : instance of matplotlib axis | None
         An axis object from matplotlib. If None, a new figure is created.
     show : bool
