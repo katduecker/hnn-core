@@ -768,32 +768,39 @@ def duecker_ET_model(
     target_cell = "L2_pyramidal"
     lamtha = 6.125  # *0.8  # shorter space constant (Campagnola, 2022, mice data)
     loc = "soma"
-    receptor = "gabaa"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    net.add_connection(src_cell, target_cell, loc, receptor, weight, delay, lamtha)
-
-    # this connection is 0
-    receptor = "gabab"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    net.add_connection(src_cell, target_cell, loc, receptor, weight, delay, lamtha)
+    for receptor in ["gabaa", "gabab"]:
+        key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
+        weight = params[key]
+        loc = "soma"
+        net.add_connection(
+            src_cell,
+            target_cell,
+            loc,
+            receptor,
+            weight,
+            delay,
+            lamtha,
+            allow_autapses=False,
+        )
 
     # layer5 inhibitory -> layer5 Pyr
     src_cell = "L5_inhibitory"
     target_cell = "L5_pyramidal"
     lamtha = 6.125  # *0.8  # shorter space constant (Campagnola, 2022, mice data)
     loc = "soma"
-    receptor = "gabaa"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    net.add_connection(src_cell, target_cell, loc, receptor, weight, delay, lamtha)
-
-    # this connection is also 0
-    receptor = "gabab"
-    key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
-    weight = params[key]
-    net.add_connection(src_cell, target_cell, loc, receptor, weight, delay, lamtha)
+    for receptor in ["gabaa", "gabab"]:
+        key = f"gbar_{_short_name(src_cell)}_{_short_name(target_cell)}_{receptor}"
+        weight = params[key]
+        net.add_connection(
+            src_cell,
+            target_cell,
+            loc,
+            receptor,
+            weight,
+            delay,
+            lamtha,
+            allow_autapses=False,
+        )
 
     # layer2 Pyr -> layer5 Pyr
     src_cell = "L2_pyramidal"
