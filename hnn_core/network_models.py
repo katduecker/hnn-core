@@ -1024,4 +1024,3 @@ def add_erp_drives_to_jones_model(net, tstart=0.0):
         synaptic_delays=synaptic_delays_prox,
         event_seed=814,
     )
-

@@ -20,7 +20,11 @@ import warnings
 from typing import Union
 
 from .cell_response import CellResponse
-from .dipole import Dipole, _baseline_renormalize_dueckerET, _baseline_renormalize_neymotin2020
+from .dipole import (
+    Dipole,
+    _baseline_renormalize_dueckerET,
+    _baseline_renormalize_neymotin2020,
+)
 from .network_builder import _simulate_single_trial
 
 _BACKEND = None
@@ -85,15 +89,24 @@ def _gather_trial_data(sim_data, net, n_trials, postproc, baseline_correction=Tr
         N_pyr_y = net._N_pyr_y
         if baseline_correction:
             model_variant = getattr(net, "_model_variant", "neymotin_2020_model")
-            if model_variant in ["neymotin_2020_model", "jones_2009_model", "law_2021_model", "calcium_model"]:
+            if model_variant in [
+                "neymotin_2020_model",
+                "jones_2009_model",
+                "law_2021_model",
+                "calcium_model",
+            ]:
                 model_variant = "neymotin_2020_model"
-                
-                baseline_correction = getattr(net, "_baseline_renormalize", _baseline_renormalize_neymotin2020)
+
+                baseline_correction = getattr(
+                    net, "_baseline_renormalize", _baseline_renormalize_neymotin2020
+                )
                 dpl = baseline_correction(dpl, N_pyr_x, N_pyr_y)
                 dpl._convert_fAm_to_nAm()  # always applied, cf. #264, convert after baseline correction
-                
+
             elif model_variant == "duecker_ET_model":
-                baseline_correction = getattr(net, "_baseline_renormalize", _baseline_renormalize_dueckerET)
+                baseline_correction = getattr(
+                    net, "_baseline_renormalize", _baseline_renormalize_dueckerET
+                )
                 # convert to nAm before baseline correction
                 dpl._convert_fAm_to_nAm()  # always applied, cf. #264
                 dpl = baseline_correction(dpl, N_pyr_x, N_pyr_y)
@@ -103,9 +116,11 @@ def _gather_trial_data(sim_data, net, n_trials, postproc, baseline_correction=Tr
 
         # KD: should this be an error?
         if dpl.baseline_applied != model_variant:
-            warn(f"Baseline correction for {dpl.baseline_applied} applied to "
-                             f"model of type {model_variant}. Your results are "
-                             "likely going to be incorrect.")
+            warn(
+                f"Baseline correction for {dpl.baseline_applied} applied to "
+                f"model of type {model_variant}. Your results are "
+                "likely going to be incorrect."
+            )
 
         if postproc:
             window_len = net._params["dipole_smooth_win"]  # specified in ms
@@ -663,7 +678,9 @@ class JoblibBackend(object):
 
         _BACKEND = self._old_backend
 
-    def simulate(self, net, tstop, dt, n_trials, postproc=False, baseline_correction=True):
+    def simulate(
+        self, net, tstop, dt, n_trials, postproc=False, baseline_correction=True
+    ):
         """Simulate the HNN model
 
         Parameters
@@ -698,7 +715,11 @@ class JoblibBackend(object):
         )
 
         dpls = _gather_trial_data(
-            sim_data, net=net, n_trials=n_trials, postproc=postproc, baseline_correction=baseline_correction
+            sim_data,
+            net=net,
+            n_trials=n_trials,
+            postproc=postproc,
+            baseline_correction=baseline_correction,
         )
 
         return dpls
@@ -1074,7 +1095,9 @@ class MPIBackend(object):
         if self.n_procs > 1:
             kill_proc_name("nrniv")
 
-    def simulate(self, net, tstop, dt, n_trials, postproc=False, baseline_correction=True):
+    def simulate(
+        self, net, tstop, dt, n_trials, postproc=False, baseline_correction=True
+    ):
         """Simulate the HNN model in parallel on all cores
 
         Parameters
@@ -1111,7 +1134,7 @@ class MPIBackend(object):
                 dt=dt,
                 n_trials=n_trials,
                 postproc=postproc,
-                baseline_correction=baseline_correction
+                baseline_correction=baseline_correction,
             )
 
         if self.n_procs > net._n_cells:
@@ -1140,7 +1163,9 @@ class MPIBackend(object):
             universal_newlines=True,
         )
 
-        dpls = _gather_trial_data(sim_data, net, n_trials, postproc, baseline_correction)
+        dpls = _gather_trial_data(
+            sim_data, net, n_trials, postproc, baseline_correction
+        )
         return dpls
 
     def terminate(self):

@@ -908,38 +908,39 @@ class Dipole(object):
 
 # model-specific baseline corrections
 
+
 # duecker_ET_model
 def _baseline_renormalize_dueckerET(dpl, N_pyr_x, N_pyr_y):
-        """Baseline correction based on Duecker model without drives"""
+    """Baseline correction based on Duecker model without drives"""
 
-        # exponential decay function
-        def _exp_decay(t, A, C, b):
-            return ((C - A) * np.exp(-b * (t))) + A
+    # exponential decay function
+    def _exp_decay(t, A, C, b):
+        return ((C - A) * np.exp(-b * (t))) + A
 
-        hnn_core_root = Path(hnn_core.__file__).parent
-        # load the baseline dipole
-        with open(hnn_core_root / "param" / "bsl_corr_duecker_ET.json", "r") as f:
-            bsl_dpl = json.load(f)
+    hnn_core_root = Path(hnn_core.__file__).parent
+    # load the baseline dipole
+    with open(hnn_core_root / "param" / "bsl_corr_duecker_ET.json", "r") as f:
+        bsl_dpl = json.load(f)
 
-        scale = N_pyr_x * N_pyr_y/bsl_dpl["N_pyr_ref"]
-        
+    scale = N_pyr_x * N_pyr_y / bsl_dpl["N_pyr_ref"]
 
-        A_L2 = bsl_dpl["L2"][-1] * scale
-        A_L5 = bsl_dpl["L5"][-1] * scale
+    A_L2 = bsl_dpl["L2"][-1] * scale
+    A_L5 = bsl_dpl["L5"][-1] * scale
 
-        C_L2 = bsl_dpl["L2"][1] * scale
-        C_L5 = bsl_dpl["L5"][1] * scale
+    C_L2 = bsl_dpl["L2"][1] * scale
+    C_L5 = bsl_dpl["L5"][1] * scale
 
-        exp_fit_l2 = _exp_decay(np.array(dpl.times[1:]), A_L2, C_L2, bsl_dpl["popt_l2"][0])
-        exp_fit_l5 = _exp_decay(np.array(dpl.times[1:]), A_L5, C_L5, bsl_dpl["popt_l5"][0])
+    exp_fit_l2 = _exp_decay(np.array(dpl.times[1:]), A_L2, C_L2, bsl_dpl["popt_l2"][0])
+    exp_fit_l5 = _exp_decay(np.array(dpl.times[1:]), A_L5, C_L5, bsl_dpl["popt_l5"][0])
 
-        dpl.data["L2"][1:] -= exp_fit_l2
-        dpl.data["L5"][1:] -= exp_fit_l5
+    dpl.data["L2"][1:] -= exp_fit_l2
+    dpl.data["L5"][1:] -= exp_fit_l5
 
-        dpl.data["agg"] = dpl.data["L2"] + dpl.data["L5"]
-        dpl.baseline_applied = "duecker_ET_model"
+    dpl.data["agg"] = dpl.data["L2"] + dpl.data["L5"]
+    dpl.baseline_applied = "duecker_ET_model"
 
-        return dpl
+    return dpl
+
 
 # neymotin_2020_model
 def _baseline_renormalize_neymotin2020(dpl, N_pyr_x, N_pyr_y):
@@ -989,9 +990,7 @@ def _baseline_renormalize_neymotin2020(dpl, N_pyr_x, N_pyr_y):
     dpl.data["L5"][(dpl.times > 37.0) & (dpl.times < t1)] -= N_pyr * (
         m * dpl.times[(dpl.times > 37.0) & (dpl.times < t1)] + b
     )
-    dpl.data["L5"][dpl.times >= t1] -= N_pyr * (
-        m1 * dpl.times[dpl.times >= t1] + b1
-    )
+    dpl.data["L5"][dpl.times >= t1] -= N_pyr * (m1 * dpl.times[dpl.times >= t1] + b1)
     # recalculate the aggregate dipole based on the baseline
     # normalized ones
     dpl.data["agg"] = dpl.data["L2"] + dpl.data["L5"]
