@@ -28,7 +28,6 @@ from .network_builder import _simulate_single_trial
 
 _BACKEND = None
 
-
 def _thread_handler(event, out, queue):
     while not event.is_set():
         line = out.readline()
