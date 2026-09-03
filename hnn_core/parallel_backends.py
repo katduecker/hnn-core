@@ -15,7 +15,6 @@ from subprocess import Popen, PIPE, TimeoutExpired
 from queue import Queue, Empty
 from threading import Thread, Event
 from pathlib import Path
-import warnings
 
 from typing import Union
 

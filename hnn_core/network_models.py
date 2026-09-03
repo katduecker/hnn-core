@@ -5,8 +5,6 @@
 from pathlib import Path
 from copy import deepcopy
 import warnings
-import json
-import numpy as np
 import hnn_core
 from hnn_core import read_params
 from .network import Network, _create_cell_coords
@@ -20,7 +18,6 @@ from .cells_default import (
     human_gen_interneuron,
 )
 from .externals.mne import _validate_type
-from scipy.optimize import curve_fit
 from .dipole import _baseline_renormalize_dueckerET, _baseline_renormalize_neymotin2020
 
 # Default cell metadata for the standard Jones 2009 network cell types.
