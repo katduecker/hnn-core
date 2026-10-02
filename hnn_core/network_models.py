@@ -622,18 +622,21 @@ def calcium_model(
     return net
 
 
-def duecker_ET_model(params=None, add_drives_from_params=False, mesh_shape=(10, 10)):
+def duecker_ET_model(params=None, add_alpha_beta_drives=False, mesh_shape=(10, 10)):
     """Instantiate the Duecker human-derived model (publication pending)
 
     Parameters
     ----------
-    params : str | dict | None
+    params : str | dict | None, default=None
         The path to the parameter file for constructing the network.
-        If None, parameters loaded from 'default_duecker_ET.json'
-        Default: None
-    add_drives_from_params : bool
-        If True, add ERP drives as defined in "duecker_ET_supra_ERP.json". Default: False
-    mesh_shape : tuple of int (default: (10, 10))
+        If None, parameters loaded from "param/default_duecker_ET.json".
+    add_alpha_beta_params : bool, default=False
+        If True, add drives that create the Alpha-Beta complex as defined in
+        "param/duecker_ET_alpha_beta_complex.json" (identical to the corresponding model
+        at
+        https://github.com/jonescompneurolab/hnn-tuning/tree/hnn-tuning-paper/network_sim/network_configs
+        ). Incompatible with other arguments.
+    mesh_shape : tuple of int, default: (10, 10)
         Defines the (n_x, n_y) shape of the grid of pyramidal cells.
 
     Returns
@@ -646,11 +649,16 @@ def duecker_ET_model(params=None, add_drives_from_params=False, mesh_shape=(10, 
     # ----------------------------------------------------------------------------------
     hnn_core_root = Path(hnn_core.__file__).parent
 
-    if add_drives_from_params:
-        network_config_fname = (
-            hnn_core_root / "network_configs" / "duecker_ET_supra_ERP.json"
+    if add_alpha_beta_drives and (params is not None or mesh_shape != (10, 10)):
+        raise ValueError(
+            "When add_alpha_beta_drives is True, params and mesh_shape must be None "
+            "and (10, 10), respectively."
         )
-        net = read_network_configuration(network_config_fname)
+    if add_alpha_beta_drives:
+        network_config_fname = (
+            hnn_core_root / "param" / "duecker_ET_alpha_beta_complex.json"
+        )
+        net = read_network_configuration(network_config_fname, read_drives=True)
 
     else:
         if params is None:
