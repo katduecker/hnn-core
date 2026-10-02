@@ -5,6 +5,8 @@ from copy import deepcopy
 import io
 from pathlib import Path
 import tempfile
+
+# from urllib.request import urlretrieve  # TODO AES needed for future Duecker test
 import warnings
 
 import numpy as np
@@ -22,7 +24,9 @@ from hnn_core import (
     jones_2009_model,
     law_2021_model,
     read_params,
+    read_network_configuration,
     simulate_dipole,
+    write_network_configuration,
 )
 from hnn_core.cells_default import pyramidal
 from hnn_core.network import (
@@ -3118,3 +3122,122 @@ def test_deprecated_jones_2009_model():
         net = jones_2009_model(add_drives_from_params=True, mesh_shape=(3, 3))
 
     simulate_dipole(net, dt=0.5, tstop=20.0, verbose=True)
+
+
+# # TODO AES: This should be uncommented once the Duecker model code is made publicly available.
+# def test_duecker_backwards_compatibility():
+#     """Test that the duecker_2020_model function is backwards compatible with its official paper-reproduction JSON network file."""
+
+#     official_hier_json_path = (
+#         hnn_core_root / "tests" / "assets" / "duecker_ET_alpha_beta_complex.json"
+#     )
+#     if not official_hier_json_path.exists():
+#         data_url = f"https://raw.githubusercontent.com/jonescompneurolab/hnn-tuning/refs/heads/hnn-tuning-paper/network_sim/network_configs/duecker_ET_alpha_beta_complex"  # noqa
+#         urlretrieve(data_url, official_hier_json_path)
+
+#     net_library = duecker_2020_model(add_alpha_beta_drives=True)
+#     net_official = read_network_configuration(official_hier_json_path)
+
+#     assert net_library == net_official
+
+
+def test_duecker_serialization(tmp_path):
+    """Test that the duecker_ET_model function can be serialized and deserialized correctly."""
+    net = duecker_ET_model(add_alpha_beta_drives=True)
+
+    # Test de/serialization of standard network with drives
+    # ----------------------------------------------------------------------------------
+    drives_file_path = tmp_path / "duecker_drives_export.json"
+    write_network_configuration(net, drives_file_path)
+
+    net_drives_read = read_network_configuration(drives_file_path)
+
+    assert net == net_drives_read
+
+    # Test de/serialization of "featureful" network with EVERYTHING
+    # ----------------------------------------------------------------------------------
+    # Adding bias
+    tonic_bias = {
+        "L2_pyramidal": 1.0,
+        "L5_pyramidal": 0.0,
+        "L2_inhibitory": 0.0,
+        "L5_inhibitory": 0.0,
+    }
+    net.add_tonic_bias(amplitude=tonic_bias)
+
+    # Add drives
+    location = "proximal"
+    burst_std = 20
+    weights_ampa_p = {
+        "L2_pyramidal": 5.4e-5,
+        "L5_pyramidal": 5.4e-5,
+        "L2_inhibitory": 0.0,
+        "L5_inhibitory": 0.0,
+    }
+    weights_nmda_p = {
+        "L2_pyramidal": 0.0,
+        "L5_pyramidal": 0.0,
+        "L2_inhibitory": 0.0,
+        "L5_inhibitory": 0.0,
+    }
+    syn_delays_p = {
+        "L2_pyramidal": 0.1,
+        "L5_pyramidal": 1.0,
+        "L2_inhibitory": 0.0,
+        "L5_inhibitory": 0.0,
+    }
+    net.add_bursty_drive(
+        "test_bursty",
+        tstart=1.0,
+        burst_rate=10,
+        burst_std=burst_std,
+        numspikes=2,
+        spike_isi=10,
+        n_drive_cells=10,
+        location=location,
+        weights_ampa=weights_ampa_p,
+        weights_nmda=weights_nmda_p,
+        synaptic_delays=syn_delays_p,
+        event_seed=284,
+    )
+
+    weights_ampa = {
+        "L2_pyramidal": 0.0008,
+        "L5_pyramidal": 0.0075,
+        "L2_inhibitory": 0.0,
+        "L5_inhibitory": 0.0,
+    }
+    synaptic_delays = {
+        "L2_pyramidal": 0.1,
+        "L5_pyramidal": 1.0,
+        "L2_inhibitory": 0.0,
+        "L5_inhibitory": 0.0,
+    }
+    rate_constant = {
+        "L2_pyramidal": 140.0,
+        "L5_pyramidal": 40.0,
+        "L2_inhibitory": 40.0,
+        "L5_inhibitory": 40.0,
+    }
+    net.add_poisson_drive(
+        "test_poisson",
+        rate_constant=rate_constant,
+        weights_ampa=weights_ampa,
+        weights_nmda=weights_nmda_p,
+        location="proximal",
+        synaptic_delays=synaptic_delays,
+        event_seed=1349,
+    )
+
+    # Adding electrode arrays
+    electrode_pos = (1, 2, 3)
+    net.add_electrode_array("el1", electrode_pos)
+    electrode_pos = [(1, 2, 3), (-1, -2, -3)]
+    net.add_electrode_array("arr1", electrode_pos)
+
+    featureful_file_path = tmp_path / "duecker_featureful_export.json"
+    write_network_configuration(net, featureful_file_path)
+
+    net_featureful_read = read_network_configuration(featureful_file_path)
+
+    assert net == net_featureful_read
